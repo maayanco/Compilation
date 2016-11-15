@@ -1,0 +1,26 @@
+(include "pc.scm")
+
+;;Trying to use stuff from pc.scm to make sure they understand each other!
+
+(define a 
+	(lambda () (display *marker-length*)))
+
+;; (define b (lambda () (disp ,*marker-length*)))
+
+(define <digit-0-9> (range #\0 #\9))
+
+(define <digit-1-9> (range #\1 #\9))
+
+(define <nat>
+	(new 	(*parser (char #\0))
+		(*parser <digit-1-9>)
+		(*parser <digit-0-9>) *star
+		(*caten 2)
+		(*pack-with
+			(lambda (a s)
+			  (string->number (list->string	`(,a ,@s)))))
+		(*disj 2)
+		done))
+
+
+
