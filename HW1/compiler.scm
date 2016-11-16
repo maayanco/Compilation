@@ -1,25 +1,8 @@
 (include "pc.scm")
 
-;;(define <Boolean> 
-;;	(new (*parser (char #\#))
-;;		(*parser (char #\t))
-;;		(*caten 2)
-;;		(*pack-with  (lambda (a s) #t))
-;;		(*parser (char #\#))
-;;		(*parser (char #\f))
-;;		(*caten 2)
-;;		(*pack-with  (lambda (a s) #f))
-;;		(*disj 2)
-;;		done))
 
-(define maayan
-	(lambda () (char? #\x41)))
-
-(define avi
-	(lambda ()   (integer->char (string->number (list->string `(#\3 #\b #\b) ) ) )))
-
-(define h
-	(lambda () (integer->char 65)))
+(define <digit-0-9> (range #\0 #\9))
+(define <digit-1-9> (range #\1 #\9))
 
 (define <Boolean> 
 	(new
@@ -32,27 +15,16 @@
 		(*disj 2)
 		done))
 
-;; Chars
-
-;(define <CharPrefix2>
-;	(new 
-;		(*parser (word "#\\"))
-;		(*pack (lambda (lst) (car lst)))
-;		done))
 
 (define <CharPrefix> 
 	(new	(*parser (char #\#))
 			(*parser (char #\\)) 
 		    (*caten 2)
-		  	;(*pack-with (lambda (a b)  (list (integer->char 35)(integer->char 92))))   
-		    ;(*pack-with  (lambda (a b) (quote #\\)) )
 		done))
 
 
-(define <digit-greater-space> (range #\space #\~) )
-
 (define <VisibleSimpleChar> 
-	(new (*parser <digit-greater-space>) *star
+	(new (*parser (range #\space #\~)) *star
 	done))
 
 (define <NamedChar>
@@ -60,45 +32,36 @@
 		(*parser (word "lambda"))
 		(*pack (lambda (_) (integer->char 955)))
 		(*parser (word "newline"))
-		(*pack (lambda (_) (integer->char 10)))
+		(*pack (lambda (_) `#\newline))
 		(*parser (word "nul"))
-		(*pack (lambda (_) (integer->char 0)))
+		(*pack (lambda (_) `#\nul))
 		(*parser (word "page"))
-		(*pack (lambda (_) `page ))
+		(*pack (lambda (_) `#\page ))
 		(*parser (word "return"))
-		(*pack (lambda (_) `return ))
+		(*pack (lambda (_) `#\return ))
 		(*parser (word "space"))
-		(*pack (lambda (_) `space ))
+		(*pack (lambda (_) `#\space ))
 		(*parser (word "tab"))
-		(*pack (lambda (_) `tab ))
+		(*pack (lambda (_) `#\tab ))
 		(*disj 7)
 		done))
 
 (define <HexChar>
 	(new (*parser (range #\0 #\9) )
 		(*parser (range #\a #\f) )
-		;(pack (lambda (a) (char->integer a)))
 		(*disj 2)
-		;(*pack (lambda (a) (list->string `(,a)) ))
 	done))
 
-;(lambda (a s) (string->number (list->string	`(,a ,@s)))))
 
 (define <HexUnicodeChar>
 	(new
 		(*parser (char #\x))
 		(*pack (lambda (_) `#\x))
 		(*parser <HexChar>) *plus
-		;(*pack (lambda (s) (string->symbol (list->string`(,@s)) )))
 		(*caten 2)
-		;(*pack-with (lambda (a s) (integer->char (+ 24 (string->number (list->string `(,@s) )) )) ))
 		(*pack-with (lambda (a s) (integer->char (string->number (list->string `(,@s) )  16) )))
-		;(*pack-with (lambda (a s) (list->string `(,a ,s)) )))
-		;(*pack-with (lambda (a s) (string->symbol (list->string `(,@s))) ))
 		done))
 
-
-(define mm (string->number "#\\b" ))
 
 (define <Char>
 	(new 
@@ -106,14 +69,209 @@
 
 		(*parser <NamedChar>)
 		(*parser <HexUnicodeChar>)
-
 		(*parser <VisibleSimpleChar>)
-		(*pack (lambda (a) (string->symbol (list->string `(,a) ))))
-
 		(*disj 3)
 
 		(*caten 2)
 		(*pack-with (lambda (a s) `( ,@s) ))
-	;;	(*pack-with (lambda (a s) (list->string `(,@a ,@s)) ))
 		done))
 
+
+(define <StringLiteralChar> 
+	(new 
+		(*parser <any-char>)
+		(*parser (char #\\))
+		*diff
+		done))
+
+
+(define <StringMetaChar> 
+	(new
+		(*parser (word-ci "\\"))
+		(*parser (word-ci "\""))
+		(*parser (word-ci "\t"))
+		(*parser (word-ci "\f"))
+		(*parser (word-ci "\n"))
+		(*parser (word-ci "\r"))
+		(*disj 6)
+		done))
+
+
+
+(define <StringHexChar>
+	(new 
+		(*parser (char #\\))
+		(*parser (char #\x))
+		(*parser <HexChar> ) *star
+		(*parser (char #\;))
+		(*caten 4)
+		done))
+
+
+(define <StringChar>
+	(new 
+		(*parser <StringLiteralChar>)
+		(*parser <StringMetaChar>)
+		(*parser <StringHexChar>)
+		(*disj 3)
+		done))
+
+
+
+
+(define <String>
+	(new
+		(*parser (char #\"))
+		(*parser <StringChar>) *star
+		(*parser (char #\"))
+		(*caten 3)
+		done))
+
+
+(define <SymbolChar>
+	(new 
+		(*parser (range #\0 #\9))
+		(*parser (range #\a #\z))
+		(*parser (range #\A #\Z))
+		(*parser (char #\!))
+		(*parser (char #\$))
+		(*parser (char #\^))
+		(*parser (char #\*))
+		(*parser (char #\-))
+		(*parser (char #\_))
+		(*parser (char #\=))
+		(*parser (char #\<))
+		(*parser (char #\>))
+		(*parser (char #\?))
+		(*parser (char #\/))
+		(*disj 14)
+	done))
+;ok
+
+(define <Symbol>
+	(new 
+		(*parser <SymbolChar>) *plus
+		;(*pack-with (lambda (s) (list? s) ))
+		done))
+
+
+(define <Sexpr>
+	(new
+		(*parser <Boolean>)
+		(*parser <Char>)
+		;(*parser <Number>)
+		;(*paresr <String>)
+		(*parser <Symbol>)
+		(*parser <ProperList>)
+		;(*parser <ImproperLIst>)
+		;(*parser <Vector>)
+		;(*parser <Quoted>)
+		;(*parser <QuasiQuoted>)
+		;(*parser <Unquoted>)
+		;(*parser <UnquoteAndSpliced>)
+		;(*parer <InfixExtension>)
+		(*disj 4)
+		;(*disj 13)
+		done))
+
+(define <ProperList>
+	(new
+		(*parser (word "("))
+		(*delayed (lambda () <Sexpr>) ) *star
+		(*parser (word ")"))
+		(*caten 3)
+		(*pack-with (lambda (pre s suf) s ))
+		done))
+
+(define <ImproperList>
+	(new
+		(*parser (word "("))
+		(*delayed (lambda () <Sexpr>) ) *plus
+		(*parser (word "."))
+		(*delayed (lambda () <Sexpr>) )
+		(*parser (word ")"))
+		(*caten 5)
+;		(*pack-with (lambda (prefix sexpr1 p sexpr2 suffix) `(,@sexpr1) ) )
+		done))
+
+(define <Vector>
+	(new
+		(*parser (word "#"))
+		(*parser (word "("))
+		(*delayed (lambda () <Sexpr>) ) *star
+		(*parser (word ")"))
+		(*caten 4)
+		(*pack-with (lambda (pre s suf) s ))
+		done))
+
+(define <Quoted>
+	(new
+		(*parser (word "'"))
+		(*delayed (lambda () <Sexpr>) )
+		(*caten 2)
+		done))
+
+(define <QuasiQuoted>
+	(new
+		(*parser (word ""))
+		(*delayed (lambda () <Sexpr>))
+		(*caten 2)
+		done))
+
+(define <Unquoted>
+	(new
+		(*parser (char #\,))
+		(*delayed (lambda () <Sexpr>))
+		(*caten 2)
+		done))
+
+(define <UnquoteAndSpliced>
+	(new
+		(*parser (char )) 
+
+;; Straight From The Tutorial
+
+(define <nat>
+  (new 
+       (*parser (char #\0)) *star
+
+       (*parser <digit-1-9>) *star
+       (*parser <digit-0-9>) *star
+       (*caten 2)
+       ;(*pack (lambda (_) 0))
+       ;(*parser <digit-0-9>) *star
+       ;(*pack (lambda (s) s))
+     	(*disj 2)
+     	;(*pack-with (lambda (a s) (string->number (list->string `(,@s)))))
+       done))
+
+(define <int>
+  (new (*parser (char #\+))
+       (*parser <nat>)
+       (*caten 2)
+       (*pack-with
+	(lambda (++ n) n))
+
+       (*parser (char #\-))
+       (*parser <nat>)
+       (*caten 2)
+       (*pack-with
+	(lambda (-- n) (- n)))
+
+       (*parser <nat>)
+
+       (*disj 3)
+
+       done))
+
+;;fractions
+(define <rat>
+  (new (*parser <int>)
+       (*parser (char #\/))
+       (*parser <nat>)
+       (*guard (lambda (n) (not (zero? n))))
+       (*caten 3)
+       (*pack-with
+	(lambda (num div den)
+	  (/ num den)))
+       done))
