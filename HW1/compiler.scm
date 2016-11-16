@@ -225,27 +225,12 @@
 		(*caten 2)
 		done))
 
-(define <UnquoteAndSpliced>
-	(new
-		(*parser (char )) 
-
-;; Straight From The Tutorial
-
-(define <nat>
-  (new 
-       (*parser (char #\0)) *star
-
-       (*parser <digit-1-9>) *star
-       (*parser <digit-0-9>) *star
-       (*caten 2)
-       ;(*pack (lambda (_) 0))
-       ;(*parser <digit-0-9>) *star
-       ;(*pack (lambda (s) s))
-     	(*disj 2)
-     	;(*pack-with (lambda (a s) (string->number (list->string `(,@s)))))
+(define <Natural>
+  (new (*parser <digit-0-9>) *star
+       (*pack (lambda (s)  (string->number (list->string `(,@s)))))
        done))
 
-(define <int>
+(define <Integer>
   (new (*parser (char #\+))
        (*parser <nat>)
        (*caten 2)
@@ -263,6 +248,14 @@
        (*disj 3)
 
        done))
+       
+(define <Number>
+    (new (*parser <Integer>)
+         (*parser <Natural>)
+         
+         (*disj 2)
+         
+         done))
 
 ;;fractions
 (define <rat>
