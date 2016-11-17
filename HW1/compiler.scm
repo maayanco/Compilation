@@ -23,6 +23,7 @@
 		done))
 
 
+; Should be case sensitive
 (define <VisibleSimpleChar> 
 	(new (*parser (range #\space #\~)) *star
 	done))
@@ -77,6 +78,7 @@
 		done))
 
 
+;Should be case sensitive
 (define <StringLiteralChar> 
 	(new 
 		(*parser <any-char>)
@@ -88,11 +90,23 @@
 (define <StringMetaChar> 
 	(new
 		(*parser (word-ci "\\"))
+		(*pack (lambda (_) #\\))
+
 		(*parser (word-ci "\""))
+		(*pack (lambda (_) #\"))
+
 		(*parser (word-ci "\t"))
+		(*pack (lambda (_) #\t))
+
 		(*parser (word-ci "\f"))
+		(*pack (lambda (_) #\f))
+
 		(*parser (word-ci "\n"))
+		(*pack (lambda (_) #\n))
+
 		(*parser (word-ci "\r"))
+		(*pack (lambda (_) #\r))
+
 		(*disj 6)
 		done))
 
@@ -100,31 +114,48 @@
 
 (define <StringHexChar>
 	(new 
-		(*parser (char #\\))
-		(*parser (char #\x))
-		(*parser <HexChar> ) *star
-		(*parser (char #\;))
+		(*parser (word "\\"))
+		(*parser (word "x"))
+		(*parser <HexChar>) *star
+		(*parser (word ";"))
 		(*caten 4)
+		(*pack-with (lambda (pre x lst comma) (list->string lst)  ))
+	;	(*parser (char #\\))
+	;	(*parser (char #\x))
+	;	(*parser <HexChar> ) *star
+	;	(*parser (char #\;))
+	;	(*caten 4)
 		done))
 
 
 (define <StringChar>
 	(new 
-		(*parser <StringLiteralChar>)
 		(*parser <StringMetaChar>)
 		(*parser <StringHexChar>)
+		(*parser <StringLiteralChar>)
 		(*disj 3)
 		done))
 
 
 
+(define <StringCharNoApostrophes>
+	(new 
+		(*parser <StringChar>) *star
+		(*parser (char #\"))
+		*diff
+		(*parser (char #\\))
+		*diff
+		done))
 
 (define <String>
 	(new
-		(*parser (char #\"))
-		(*parser <StringChar>) *star
-		(*parser (char #\"))
+		(*parser (word "\""))
+		(*parser <StringChar>) 
+		(*guard (lambda (a) (not (equal? a #\"))  ))
+		*star
+		(*parser (word "\""))
 		(*caten 3)
+		(*pack-with (lambda (pre lst post) (list->string `(,@lst))  ))
 		done))
 
 
@@ -155,40 +186,96 @@
 		done))
 
 
-(define <Sexpr>
-	(new
-		(*parser <Boolean>)
-		(*parser <Char>)
-		;(*parser <Number>)
-		;(*paresr <String>)
-		(*parser <Symbol>)
-		(*parser <ProperList>)
-		;(*parser <ImproperLIst>)
-		;(*parser <Vector>)
-		;(*parser <Quoted>)
-		;(*parser <QuasiQuoted>)
-		;(*parser <Unquoted>)
-		;(*parser <UnquoteAndSpliced>)
-		;(*parer <InfixExtension>)
-		(*disj 4)
-		;(*disj 13)
+(define <Natural>
+  (new (*parser (char #\0))
+       (*pack (lambda (_) 0))
+
+       (*parser <digit-1-9>)
+       (*parser <digit-0-9>) *star
+       (*caten 2)
+       (*pack-with (lambda (a s) (string->number (list->string `(,a ,@s)))))
+
+       (*disj 2)
+       done))
+
+;(define <Natural>
+;  (new (*parser <digit-0-9>) *star
+;       (*pack (lambda (s)  (string->number (list->string `(,@s)))))
+;       done))
+
+(define <Integer>
+	(new 
+		(*parser (word "+"))
+		(*parser <Natural>)
+		(*caten 2)
+		(*pack-with (lambda (++ n) n))
+
+		(*parser (word "-"))
+		(*parser <Natural>)
+		(*caten 2)
+		(*pack-with (lambda (-- n ) (- n)))
+
+		(*parser <Natural>)
+
+		(*disj 3)
 		done))
+
+;(define <Integer>
+;  (new (*parser (char #\+))
+;       (*parser <Natural>)
+;       (*caten 2)
+;       (*pack-with (lambda (++ n) n))
+
+;       (*parser (char #\-))
+;       (*parser <Natural>)
+ ;      (*caten 2)
+;       (*pack-with (lambda (-- n) (- n)))
+
+;       (*parser <Natural>)
+
+;       (*disj 3)
+
+;       done))
+       
+ (define <Fraction>
+  (new (*parser <Integer>)
+       (*parser (char #\/))
+       (*parser <Natural>)
+       (*guard (lambda (n) (not (zero? n))))
+       (*caten 3)
+       (*pack-with (lambda (num div den) (/ num den)))
+       done))
+
+
+(define <Number>
+    (new 
+         (*parser <Fraction>)
+         (*parser <Integer>)
+         (*disj 2)
+         
+         done))
+
+;;fractions
+
+
+
 
 (define <ProperList>
 	(new
 		(*parser (word "("))
-		(*delayed (lambda () <Sexpr>) ) *star
+		(*delayed (lambda () <sexpr>) ) *star
 		(*parser (word ")"))
 		(*caten 3)
 		(*pack-with (lambda (pre s suf) s ))
 		done))
 
+
 (define <ImproperList>
 	(new
 		(*parser (word "("))
-		(*delayed (lambda () <Sexpr>) ) *plus
+		(*delayed (lambda () <sexpr>) ) *plus
 		(*parser (word "."))
-		(*delayed (lambda () <Sexpr>) )
+		(*delayed (lambda () <sexpr>) )
 		(*parser (word ")"))
 		(*caten 5)
 ;		(*pack-with (lambda (prefix sexpr1 p sexpr2 suffix) `(,@sexpr1) ) )
@@ -196,75 +283,104 @@
 
 (define <Vector>
 	(new
-		(*parser (word "#"))
-		(*parser (word "("))
-		(*delayed (lambda () <Sexpr>) ) *star
+		(*parser (word "#("))
+		(*delayed (lambda () <sexpr>) ) ;*star
 		(*parser (word ")"))
-		(*caten 4)
-		(*pack-with (lambda (pre s suf) s ))
+		(*caten 3)
+		(*pack-with (lambda (pre s suf) (vector s)  ))
 		done))
 
 (define <Quoted>
 	(new
 		(*parser (word "'"))
-		(*delayed (lambda () <Sexpr>) )
+		(*delayed (lambda () <sexpr>) )
 		(*caten 2)
+		(*pack-with (lambda (a s) (list 'quote s)))
 		done))
 
 (define <QuasiQuoted>
 	(new
-		(*parser (word ""))
-		(*delayed (lambda () <Sexpr>))
+		(*parser (word "`"))
+		(*delayed (lambda () <sexpr>))
 		(*caten 2)
+		(*pack-with (lambda (a s) (list 'quasiquote s)))
 		done))
 
 (define <Unquoted>
 	(new
-		(*parser (char #\,))
-		(*delayed (lambda () <Sexpr>))
+		(*parser (word ","))
+		(*delayed (lambda () <sexpr>))
 		(*caten 2)
+		(*pack-with (lambda (a s) (list 'unquote s)))
 		done))
 
-(define <Natural>
-  (new (*parser <digit-0-9>) *star
-       (*pack (lambda (s)  (string->number (list->string `(,@s)))))
-       done))
+(define <UnquoteAndSpliced>
+	(new
+		(*parser (word ",@"))
+		(*delayed (lambda () <sexpr>))
+		(*caten 2)
+		(*pack-with (lambda (a s) (list 'unquote-splicing s) ))
+		done))
 
-(define <Integer>
-  (new (*parser (char #\+))
-       (*parser <nat>)
-       (*caten 2)
-       (*pack-with
-	(lambda (++ n) n))
 
-       (*parser (char #\-))
-       (*parser <nat>)
-       (*caten 2)
-       (*pack-with
-	(lambda (-- n) (- n)))
+;; helper parser - returns the type of parsed expression, instead of the parsed value
+(define <sexprh>
+	(new
+		(*parser <ImproperList>)
+		(*pack (lambda (_) `improperlist))
 
-       (*parser <nat>)
+		(*parser <ProperList>)
+		(*pack (lambda (_) `ProperList))
 
-       (*disj 3)
+		(*parser <Vector>) ;should be packed
+		(*pack (lambda (_) `Vector))
 
-       done))
-       
-(define <Number>
-    (new (*parser <Integer>)
-         (*parser <Natural>)
-         
-         (*disj 2)
-         
-         done))
+		(*parser <Boolean>)
+		(*pack (lambda (_) `Boolean))
 
-;;fractions
-(define <rat>
-  (new (*parser <int>)
-       (*parser (char #\/))
-       (*parser <nat>)
-       (*guard (lambda (n) (not (zero? n))))
-       (*caten 3)
-       (*pack-with
-	(lambda (num div den)
-	  (/ num den)))
-       done))
+		(*parser <Quoted>)
+		(*pack (lambda (_) `Quoted))
+
+		(*parser <QuasiQuoted>)
+		(*pack (lambda (_) `QuasiQuoted))
+
+		(*parser <Unquoted>)
+		(*pack (lambda (_) `Unquoted))
+
+		(*parser <UnquoteAndSpliced>)
+		(*pack (lambda (_) `UnquoteAndSpliced))
+
+		(*parser <Number>)
+		(*pack (lambda (_) `Number))
+
+		(*parser <Char>)
+		(*pack (lambda (_) `Char))
+
+		(*parser <Symbol>)
+		(*pack (lambda (_) `Symbol))
+
+		(*parser <String>)
+		(*pack (lambda (_) `String))
+
+		(*disj 12)
+		done))
+
+(define <sexpr>
+	(new
+		(*parser <ImproperList>)
+		(*parser <ProperList>)
+		(*parser <Vector>) ;should be packed
+		(*parser <Boolean>)
+		(*parser <Quoted>)
+		(*parser <QuasiQuoted>)
+		(*parser <Unquoted>)
+		(*parser <UnquoteAndSpliced>)
+		(*parser <Number>)
+		(*parser <Char>)
+		(*parser <Symbol>)
+		(*parser <String>)
+
+		;(*parer <InfixExtension>)
+		(*disj 12)
+		;(*disj 13)
+		done))
