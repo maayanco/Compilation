@@ -7,12 +7,12 @@ Left To Do:
 - Test sexpr as a whole
 - handle comments and whitespaces, there is the code mayer wrote and uploaded but it is still unclear in what staged are we supposed to use these methods to identify these comments/whitespaces.
 Perhaps in the infix.
-- Infix - test the tokens i wrote, 
+- Infix - test the tokens i wrote, and add packing 
 - implement logic between the different infix actions, meaning precenence.
   ref:
   https://www.facebook.com/groups/comp171/permalink/919407011494147/?comment_id=920794048022110&comment_tracking=%7B%22tn%22%3A%22R7%22%7D
 
-Summary of updates:
+Updates:
 Maayan 20/11-
   - Added the comments tokens from Mayer's uploaded file.
   - Wrote the definitions for almost all the infix terminals.
