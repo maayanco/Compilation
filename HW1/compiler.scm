@@ -8,10 +8,8 @@
 	(new
 		(*parser (word-ci "#t"))
 		(*pack (lambda (_) #t))
-
 		(*parser (word-ci "#f"))
 		(*pack (lambda (_) #f))
-
 		(*disj 2)
 		done))
 
@@ -20,33 +18,38 @@
 	(new	(*parser (char #\#))
 			(*parser (char #\\)) 
 		    (*caten 2)
+		    (*pack-with (lambda (a b) #\\))
 		done))
 
 
 ; Should be case sensitive
 (define <VisibleSimpleChar> 
-	(new (*parser (range #\space #\~)) *star
+	(new (*parser (range #\! (integer->char 255)))
 	done))
+
 
 (define <NamedChar>
 	(new
-		(*parser (word "lambda"))
+		(*parser (word-ci "lambda"))
 		(*pack (lambda (_) (integer->char 955)))
-		(*parser (word "newline"))
+		(*parser (word-ci "newline"))
 		(*pack (lambda (_) `#\newline))
-		(*parser (word "nul"))
+		(*parser (word-ci "nul"))
 		(*pack (lambda (_) `#\nul))
-		(*parser (word "page"))
+		(*parser (word-ci "page"))
 		(*pack (lambda (_) `#\page ))
-		(*parser (word "return"))
+		(*parser (word-ci "return"))
 		(*pack (lambda (_) `#\return ))
-		(*parser (word "space"))
+		(*parser (word-ci "space"))
 		(*pack (lambda (_) `#\space ))
-		(*parser (word "tab"))
+		(*parser (word-ci "tab"))
 		(*pack (lambda (_) `#\tab ))
 		(*disj 7)
 		done))
 
+;;Question: should A to Z be included?
+;;Another Question: should the input be a string or a char?
+;; currently we get "a" not "#\\a"
 (define <HexChar>
 	(new (*parser (range #\0 #\9) )
 		(*parser (range #\a #\f) )
@@ -54,10 +57,14 @@
 	done))
 
 
+;; should i accept only x or also capital?
 (define <HexUnicodeChar>
 	(new
 		(*parser (char #\x))
 		(*pack (lambda (_) `#\x))
+		(*parser (char #\X))
+		(*pack (lambda (_) `#\x))
+		(*disj 2)
 		(*parser <HexChar>) *plus
 		(*caten 2)
 		(*pack-with (lambda (a s) (integer->char (string->number (list->string `(,@s) )  16) )))
@@ -79,6 +86,7 @@
 
 
 ;Should be case sensitive
+;;should return string? currently returns chars..
 (define <StringLiteralChar> 
 	(new 
 		(*parser <any-char>)
@@ -111,20 +119,19 @@
 		done))
 
 
-
+;; i added an if inside the lambda, is it ok?
+;; why not really
 (define <StringHexChar>
 	(new 
 		(*parser (word "\\"))
-		(*parser (word "x"))
+		(*parser (word-ci "x"))
 		(*parser <HexChar>) *star
 		(*parser (word ";"))
 		(*caten 4)
-		(*pack-with (lambda (pre x lst comma) (list->string lst)  ))
-	;	(*parser (char #\\))
-	;	(*parser (char #\x))
-	;	(*parser <HexChar> ) *star
-	;	(*parser (char #\;))
-	;	(*caten 4)
+		(*pack-with (lambda (pre x s comma) 
+			(if (null? s)
+			""
+			(integer->char (string->number (list->string `(,@s) )  16) ))))
 		done))
 
 
@@ -138,15 +145,6 @@
 
 
 
-(define <StringCharNoApostrophes>
-	(new 
-		(*parser <StringChar>) *star
-		(*parser (char #\"))
-		*diff
-		(*parser (char #\\))
-		*diff
-		done))
-
 (define <String>
 	(new
 		(*parser (word "\""))
@@ -159,6 +157,7 @@
 		done))
 
 
+;; returns chars, is it ok??
 (define <SymbolChar>
 	(new 
 		(*parser (range #\0 #\9))
@@ -171,37 +170,30 @@
 		(*parser (char #\-))
 		(*parser (char #\_))
 		(*parser (char #\=))
+		(*parser (char #\+))
 		(*parser (char #\<))
 		(*parser (char #\>))
 		(*parser (char #\?))
 		(*parser (char #\/))
-		(*disj 14)
+		(*disj 15)
+		;(*pack (lambda (a) (string->symbol (list->string (list a)))))
+	;	(*pack (lambda (a) (list->quote `(,@a))))
 	done))
-;ok
+
 
 (define <Symbol>
 	(new 
 		(*parser <SymbolChar>) *plus
-		;(*pack-with (lambda (s) (list? s) ))
+		;(*pack (lambda (s) (string->symbol (list->string s))))
 		done))
 
 
 (define <Natural>
-  (new (*parser (char #\0))
-       (*pack (lambda (_) 0))
+	(new
+		(*parser <digit-0-9>) *plus
+		(*pack (lambda (a) (string->number (list->string a)) ))
+		done))
 
-       (*parser <digit-1-9>)
-       (*parser <digit-0-9>) *star
-       (*caten 2)
-       (*pack-with (lambda (a s) (string->number (list->string `(,a ,@s)))))
-
-       (*disj 2)
-       done))
-
-;(define <Natural>
-;  (new (*parser <digit-0-9>) *star
-;       (*pack (lambda (s)  (string->number (list->string `(,@s)))))
-;       done))
 
 (define <Integer>
 	(new 
@@ -219,31 +211,15 @@
 
 		(*disj 3)
 		done))
-
-;(define <Integer>
-;  (new (*parser (char #\+))
-;       (*parser <Natural>)
-;       (*caten 2)
-;       (*pack-with (lambda (++ n) n))
-
-;       (*parser (char #\-))
-;       (*parser <Natural>)
- ;      (*caten 2)
-;       (*pack-with (lambda (-- n) (- n)))
-
-;       (*parser <Natural>)
-
-;       (*disj 3)
-
-;       done))
        
+
  (define <Fraction>
   (new (*parser <Integer>)
        (*parser (char #\/))
        (*parser <Natural>)
        (*guard (lambda (n) (not (zero? n))))
        (*caten 3)
-       (*pack-with (lambda (num div den) (/ num den)))
+       (*pack-with (lambda (a div b) (/ a b)))
        done))
 
 
@@ -252,12 +228,7 @@
          (*parser <Fraction>)
          (*parser <Integer>)
          (*disj 2)
-         
          done))
-
-;;fractions
-
-
 
 
 (define <ProperList>
@@ -278,13 +249,13 @@
 		(*delayed (lambda () <sexpr>) )
 		(*parser (word ")"))
 		(*caten 5)
-;		(*pack-with (lambda (prefix sexpr1 p sexpr2 suffix) `(,@sexpr1) ) )
+		(*pack-with (lambda (brk1 exp1 point exp2 brk2) `(,@exp1 . ,exp2) ))
 		done))
 
 (define <Vector>
 	(new
 		(*parser (word "#("))
-		(*delayed (lambda () <sexpr>) ) ;*star
+		(*delayed (lambda () <sexpr>) ) *star
 		(*parser (word ")"))
 		(*caten 3)
 		(*pack-with (lambda (pre s suf) (vector s)  ))
