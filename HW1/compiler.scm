@@ -258,7 +258,7 @@
 		(*delayed (lambda () <sexpr>) ) *star
 		(*parser (word ")"))
 		(*caten 3)
-		(*pack-with (lambda (pre s suf) (vector s)  ))
+		(*pack-with (lambda (pre s suf) (list->vector s)  ))
 		done))
 
 (define <Quoted>
@@ -340,7 +340,7 @@
 	(new
 		(*parser <ImproperList>)
 		(*parser <ProperList>)
-		(*parser <Vector>) ;should be packed
+		(*parser <Vector>) 
 		(*parser <Boolean>)
 		(*parser <Quoted>)
 		(*parser <QuasiQuoted>)

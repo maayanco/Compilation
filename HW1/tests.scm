@@ -260,3 +260,21 @@ is the input value ok?
 
 ;;Vector
 (test-string <Vector> "#(#\\Lambda#\\Lambda)")
+==>#(#\λ #\λ)
+;; Vector DOESN'T WORK As required!!
+
+;; <Quoted>
+(test-string <Quoted> "'#\\Lambda")
+==> '#\λ
+
+;; <Quoted>
+(test-string <QuasiQuoted> "`#\\Lambda")
+==> `#\λ
+
+;; <Quoted>
+(test-string <Unquoted> ",#\\Lambda")
+==> ,#\λ
+
+;; <Quoted>
+(test-string <UnquoteAndSpliced> ",@#\\Lambda")
+==> ,@#\λ
