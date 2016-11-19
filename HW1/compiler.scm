@@ -184,7 +184,7 @@
 (define <Symbol>
 	(new 
 		(*parser <SymbolChar>) *plus
-		;(*pack (lambda (s) (string->symbol (list->string s))))
+		(*pack (lambda (s) (string->symbol (list->string s))))
 		done))
 
 
@@ -355,3 +355,197 @@
 		(*disj 12)
 		;(*disj 13)
 		done))
+
+;; code from mayer's uploaded file
+(define <whitespace>
+  (const
+   (lambda (ch)
+     (char<=? ch #\space))))
+
+(define <line-comment>
+  (let ((<end-of-line-comment>
+	 (new (*parser (char #\newline))
+	      (*parser <end-of-input>)
+	      (*disj 2)
+	      done)))
+    (new 	(*parser (char #\;))
+	 
+	 		(*parser <any-char>)
+	 		(*parser <end-of-line-comment>)
+	 		*diff 
+	 		*star
+
+	 		(*parser <end-of-line-comment>)
+	 		(*caten 3)
+	done)))
+
+(define <sexpr-comment>
+  (new (*parser (word "#;"))
+       (*delayed (lambda () <sexpr>))
+       (*caten 2)
+       done))
+
+(define <comment>
+  (disj <line-comment>
+	<sexpr-comment>))
+
+(define <skip>
+  (disj <comment>
+	<whitespace>))
+
+(define ^^<wrapped>
+  (lambda (<wrapper>)
+    (lambda (<p>)
+      (new (*parser <wrapper>)
+	   (*parser <p>)
+	   (*parser <wrapper>)
+	   (*caten 3)
+	   (*pack-with
+	    (lambda (_left e _right) e))
+	   done))))
+
+(define ^<skipped*> (^^<wrapped> (star <skip>)))
+
+;(define <sexpr>
+;  (^<skipped*>
+;   (disj <boolean>
+;	 )))
+
+;; TODO: (define <InfixExtension> ... )
+
+(define <InfixPrefixExtensionPrefix>
+	(new (*parser (word "##"))
+		 (*parser (word "#%"))
+		 (*disj 2)
+	done))
+
+;; TODO: (define <InfixExpression> ...)
+(define <InfixSymbol>
+	(new (*parser <Symbol>)
+		  (*guard (lambda (a) (and 
+		  							(not (equal? a #\+)) 
+		  							(not (equal? a #\-)) 
+		  							(not (equal? a #\*)) 
+		  							(not (equal? a "**")) 
+		  							(not (equal? a #\^)) 
+		  							(not (equal? a #\/))
+		  )))
+		done))
+
+(define <InfixAdd>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (char #\+))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*caten 3)
+		 (*pack-with (lambda (exp1 sign exp2) `(+ ,exp1 ,exp2) ))
+		 done))
+
+
+(define <InfixNeg>
+	(new (*parser (word "-"))
+		 (*delayed (lambda () <InfixExpression>) )
+		 (*caten 2)
+		 (*pack-with (lambda (minus exp) `(- ,exp)))
+	done))	 
+
+(define <InfixSub>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (char #\-))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*caten 3)
+		 (*pack-with (lambda (exp1 sign exp2) `(- ,exp1 ,exp2) ))
+	done))
+
+(define <InfixMul>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (char #\*))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*caten 3)
+		 (*pack-with (lambda (exp1 sign exp2) `(* ,exp1 ,exp2) ))
+	done))
+
+
+(define <InfixDiv>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (char #\/))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*caten 3)
+		 (*pack-with (lambda (exp1 sign exp2) `(/ ,exp1 ,exp2) ))
+	done))
+
+(define <PowerSymbol>
+	(new (*parser (char #\^))
+		 (*parser (word "**"))
+		 (*disj 2)
+	done))
+
+(define <InfixPow>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser <PowerSymbol>)
+		 (*delayed (lambda () <InfixExpression>))
+		 (*caten 3)
+		 (*pack-with (lambda (exp1 sign exp2) `(expt ,exp1 ,exp2) ))
+	done))
+
+(define <InfixArgList>
+	(new ;(*delayed (lambda () <InfixExpression>))
+		 ;(*pack (lambda (a) a))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*parser (word ","))
+		 ;(*pack (lambda (comma) ","))
+		 (*delayed (lambda () <InfixExpression>)) 
+		 (*caten 2)
+		 *star
+		 ;(*pack-with (lambda (comma lst) `(,@lst) ))
+		 (*caten 2)
+		 ;(*pack-with (lambda (exp1 comma exp2) `(exp)))
+		 ;(*disj 2)
+	done))
+
+
+(define <InfixFuncall>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (word "("))
+	     (*delayed (lambda () <InfixArgList>))
+		 (*parser (word ")"))
+		 (*caten 4)
+	done))
+
+
+(define <InfixArrayGet>
+	(new (*delayed (lambda () <InfixExpression>))
+		 (*parser (word "["))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*parser (word "]"))
+		 (*caten 4)
+	done))
+
+(define <InfixParen>
+	(new (*parser (word "("))
+		 (*delayed (lambda () <InfixExpression>))
+		 (*parser (word ")"))
+		 (*caten 3)
+	done))
+
+(define <InfixSexprEscape>
+	(new (*parser <InfixPrefixExtensionPrefix>)
+		 (*parser <sexpr>)
+		 (*caten 2)
+	done))
+
+
+(define <InfixExpression>
+	(new (*parser <Number>)
+		 (*parser <Char>)
+		 (*parser <Symbol>)
+		 (*disj 3)
+		 ;; not complete!!
+		done))
+
+;(define <InfixExpression>
+;	(new (*parser <SubExp>)
+;		done))
+
+
+
+
