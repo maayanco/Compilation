@@ -3,21 +3,22 @@
 Summary:
 
 19/11 - 
-- Wrote a file including tests to all terminals up to Vector.
-- Tested and corrected (including the packing of everything up to Vector.
-- Regarding Symbol, if i attempt to make sure the returned value is a symbol then the following scenario occurs:
+- Wrote a file including tests to all terminals.
+- Tested and corrected (including packing).
 
+Problems:
+- In Symbol, if i attempt to make sure the returned value is a symbol then the following scenario occurs:
 (test-string \<Symbol> "1")
 ==>  \x31
-
 Should we return a string then?
-- Problem with vector:
+- Problem when testing vector:
+(test-string <sexpr> "#(#\\Lambda1abc)")
+((match #(#\λ 1 (#\a #\b #\c))) (remaining ""))
+there is some type symbol, char or string that causes the returned value of abc to be (#\a #\b #\c), something isn't packed properly..
 
-(test-string \<Vector> "#(abc/2#\\Lambda)")
-((match #(((#\a #\b #\c #\/ #\2) #\λ))) (remaining ""))
 
 Left To Do:
+- Test sexpr as a whole
 - handle comments and whitespaces, there is the code mayer wrote and uploaded but it is still unclear in what staged are we supposed to use these methods to identify these comments/whitespaces.
 Perhaps in the infix.
-
 - Infix - the entire grammer.
