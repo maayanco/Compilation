@@ -7,13 +7,13 @@ Summary:
 - Tested and corrected (including the packing of everything up to Vector.
 - Regarding Symbol, if i attempt to make sure the returned value is a symbol then the following scenario occurs:
 
-(test-string <Symbol> "1")
+(test-string \<Symbol> "1")
 ==>  \x31
 
 Should we return a string then?
 - Problem with vector:
 
-(test-string <Vector> "#(abc/2#\\Lambda)")
+(test-string \<Vector> "#(abc/2#\\Lambda)")
 ((match #(((#\a #\b #\c #\/ #\2) #\λ))) (remaining ""))
 
 Left To Do:
