@@ -2,6 +2,15 @@
 
 Summary:
 
+20/11-
+  - Added the comments tokens from Mayer's uploaded file.
+  - Wrote the definitions for almost all the infix terminals.
+  - Changed \<Symbol> to return a string.
+  - Need to implement logic between the different infix actions, meaning precedence.
+  ref:
+  https://www.facebook.com/groups/comp171/permalink/919407011494147/?comment_id=920794048022110&comment_tracking=%7B%22tn%22%3A%22R7%22%7D
+  - Need to incorporate the comments into infix (i think..), where do we take care of that?
+  
 19/11 - 
 - Wrote a file including tests to all terminals.
 - Tested and corrected (including packing).
