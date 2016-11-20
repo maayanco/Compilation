@@ -13,6 +13,13 @@ Perhaps in the infix.
   https://www.facebook.com/groups/comp171/permalink/919407011494147/?comment_id=920794048022110&comment_tracking=%7B%22tn%22%3A%22R7%22%7D
 
 Updates:
+Maayan 21/11 - 
+	Problem with InfixArrayGet, InfixFuncall, etc..
+	The problem is that when we execute (test-string \<InfixExpression> "A[1]")
+	the result is that A is matched using  \<InfixSymbol> but the rest of the expression can't be matched, we should have gone to \<InfixArrayGet> first, but we didn't becuase \<InfixSymbol>
+	was first.
+	On the other hand if we switch their order, (test-string <InfixArrayGet> "A[1]") will enter an infinite loop, becuase it will constantly search for infixExpression, and then enter INfixArrayGet, 		and then InfixExpression and there will never be an end to it..
+
 Maayan 20/11-
   - Added the comments tokens from Mayer's uploaded file.
   - Wrote the definitions for almost all the infix terminals.
