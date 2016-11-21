@@ -1,6 +1,6 @@
 ; Change to your own location
-(load "parser.so")
-(load "compilerN.scm")
+(load "~/comp/ass1/Compilation/HW1/parser.so")
+(load "~/comp/ass1/Compilation/HW1/compilerN.scm")
 
 (define <my-sexpr> <sexpr2>) ; Change to your sexpr name
 (define <staff-sexpr> <sexpr>)
@@ -283,3 +283,4 @@
       (cons "Comments" commentsTests)
       (cons "MayerExamples" MayerExamples)    
 ))
+
