@@ -186,14 +186,12 @@
 		(*parser <SymbolChar>) *plus
 		(*pack (lambda (s) (string->symbol (list->string s))))
 		done))
-
-
+		
 (define <Natural>
 	(new
 		(*parser <digit-0-9>) *plus
 		(*pack (lambda (a) (string->number (list->string a)) ))
 		done))
-
 
 (define <Integer>
 	(new 
@@ -212,7 +210,6 @@
 		(*disj 3)
 		done))
        
-
  (define <Fraction>
   (new (*parser <Integer>)
        (*parser (char #\/))
@@ -221,14 +218,18 @@
        (*caten 3)
        (*pack-with (lambda (a div b) (/ a b)))
        done))
-
-
+		
 (define <Number>
     (new 
          (*parser <Fraction>)
          (*parser <Integer>)
          (*disj 2)
          done))
+
+(define <OnlyNumbers>
+        (new 
+                (*parser (not-followed-by <Number> <Symbol>))
+                done))
 
 
 (define <ProperList>
@@ -415,7 +416,7 @@
 (define <BasicExpression>
 	(new 
 		 ;(*delayed (lambda () <InfixFuncall>))
-		 (*parser <Number>)
+		 (*parser <OnlyNumbers>)
 		 (*parser <InfixSymbol>)
 		 (*guard (lambda (a) (and (not (eq? a "]")) (not (eq? a "[")) )))
 		 (*delayed (lambda () <InfixArrayGet>))
@@ -542,7 +543,7 @@ done))
 		 ;;(*pack-with (lambda (exp1 exp2) (list 'vector-ref exp1 exp2) ))
 ;	done))
 
-(define <InfixArrayGet2> 
+(define <InfixArrayGet> 
 	(new 
 		;(*delayed (lambda () <InfixAddOrSub>))
 		(*parser (word "["))
@@ -551,7 +552,7 @@ done))
 		(*caten 3)
     done))
 
-(define <InfixArrayGet> 
+(define <InfixArrayGet2> 
 	(new 
 		(*delayed (lambda () <InfixAddOrSub>))
 		(*parser (word "["))
@@ -624,7 +625,8 @@ done))
 		(*parser <QuasiQuoted>)
 		(*parser <Unquoted>)
 		(*parser <UnquoteAndSpliced>)
-		(*parser <Number>)
+		(*parser <OnlyNumbers>)
+		;(*parser <Number>)
 		(*parser <Char>)
 		(*parser <Symbol>)
 		(*parser <String>)
@@ -632,3 +634,4 @@ done))
 		;(*disj 12)
 		(*disj 13)
 		done)))
+		
