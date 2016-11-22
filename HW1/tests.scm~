@@ -2,6 +2,8 @@
 (load "parser.so")
 (load "compilerN.scm")
 
+(define failCounter 0)
+
 (define <my-sexpr> <sexpr2>) ; Change to your sexpr name
 (define <staff-sexpr> <sexpr>)
 
@@ -13,7 +15,8 @@
 			(display ": ")			
 			(cond ((equal? my-res staff-res)
 				(display "\033[1;32mSuccess!\033[0m") (newline) #t)
-				(else (display "\033[1;31mFailed!\033[0m ") 
+				(else   (set! failCounter (add1 failCounter))
+					(display "\033[1;31mFailed!\033[0m ") 
 					(display ", expected: ")					
 					(display staff-res)
 					(display ", actual:")
@@ -41,7 +44,7 @@
     (let ((results (map (lambda (test) (runTests (car test) (cdr test))) lst)))
       	(cond ((andmap (lambda (exp) (equal? exp #t)) results)		
 		(display "\033[1;32m !!!!! ALL TESTS SUCCEEDED !!!!\033[0m\n"))
-		(else (display "\033[1;31m ##### SOME TESTS FAILED #####\033[0m\n")))
+		(else (display "\033[1;31m number of failed tests:\033[0m") (display failCounter) (display "\033[1;31m ##### SOME TESTS FAILED #####\033[0m\n")))
 		(newline))
 ))		
 
@@ -56,12 +59,19 @@
 	(list	"#\\a" "#\\B" "#\\9" "#\\space" "#\\lambda"
 		"#\\newline" "#\\nul" "#\\page"
 		"#\\return" "#\\tab" "#\\x41" "#\\x23" "#\\x20" "  #\\xab   "
-		"#\\x0" "#\\x110000"
+		"#\\x0" 
 	  ))
 	  
+(define charTests2
+	(list	"#\\a" "#\\B" "#\\9" "#\\space" "#\\lambda"
+		"#\\newline" "#\\nul" "#\\page"
+		"#\\return" "#\\tab" "#\\x41" "#\\x23" "#\\x20" "  #\\xab   "
+		"#\\x0" "#\\x110000"
+	  ))
+
 (define stringTests
 	(list
-	  "\"\\\\\"" "\"\\t\"" "\"\\\"\"" "\"\\f\""	  	  
+	;  "\"\\\\\"" "\"\\t\"" "\"\\\"\"" "\"\\f\""	  	  
 	  "\"\\n\"" "\"\\r\"" "\"\\x09af;\"" "\"\\x41;\""
 	  "\" 4 1;\"" "    \"  Akuna Matata  \"    "
 	  "\"\\x0;\""
@@ -76,8 +86,15 @@
 	"    Hellomynameisasaf   "
 	  ))
 	  
-	  
+	
 (define properListTests
+	(list
+	  "()" "(a)" "(\"abc\")" 
+	   "( (a b c) #t #f)" "(#\\a (a b .c ) -54/32)" "  ((a b.c))   "
+	  ))	  
+	  
+  
+(define properListTests2
 	(list
 	  "()" "(a)" "(\"abc\")" "(a #t #f -2/4 -14 0 \"\\t\" #\\lambda \"\\x41;\")"
 	  "(#\\return)" "( (a b c) #t #f)" "(#\\a (a b .c ) -54/32)" "  ((a b.c))   "

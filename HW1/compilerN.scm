@@ -144,30 +144,81 @@
 	(new 
 		(*parser <any-char>)
 		(*parser (char #\\))
+		;(*pack (lambda (a) (string a)  ))
 		*diff
 		done))
 
+(define ^<meta-char>
+  (lambda (str ch)
+    (new (*parser (word str))
+	 (*pack (lambda (_) ch))
+	 done)))
 
-(define <StringMetaChar> 
-	(new
-		(*parser (word-ci "\\"))
-		(*pack (lambda (_) #\\))
+(define <StringMetaChar3>
+  (new (*parser (^<meta-char> "\\\\" #\\))
+       (*parser (^<meta-char> "\\\"" #\"))
+       (*parser (^<meta-char> "\\n" #\newline))
+       (*parser (^<meta-char> "\\r" #\return))
+       (*parser (^<meta-char> "\\t" #\tab))
+       (*parser (^<meta-char> "\\f" #\page)) ; formfeed
+       ;(*parser (^<meta-char> "\\{lambda}" (integer->char 955)))
+       ;(*parser (^<meta-char> "\\{alef}" (integer->char 1488)))
+       ;(*parser (^<meta-char> "\\{bismillah}" (integer->char 65021)))
+       ;(*parser (^<meta-char> "\\{smiley}" (integer->char 9786)))
 
-		(*parser (word-ci "\""))
+       (*disj 6)
+       done))
+
+(define <StringMetaChar>
+(new
+
+		(*parser (word-ci "\\\""))
 		(*pack (lambda (_) #\"))
 
-		(*parser (word-ci "\t"))
+		(*parser (word-ci "\\t"))
 		(*pack (lambda (_) #\t))
 
-		(*parser (word-ci "\f"))
+		(*parser (word-ci "\\f"))
 		(*pack (lambda (_) #\f))
 
-		(*parser (word-ci "\n"))
+		(*parser (word-ci "\\n"))
 		(*pack (lambda (_) #\n))
 
-		(*parser (word-ci "\r"))
+		(*parser (word-ci "\\r"))
 		(*pack (lambda (_) #\r))
 
+		(*parser (word-ci "\\\\"))
+		(*pack (lambda (_) #\\))
+		(*disj 6)
+		done))
+
+
+(define <StringMetaChar2> 
+	(new
+
+		(*parser (word-ci "\\\""))
+		(*pack (lambda (_) "\""))
+		;(*pack (lambda (_) #\"))
+
+		(*parser (word-ci "\\t"))
+		(*pack (lambda (_) "\t"))
+		;(*pack (lambda (_) #\t))
+
+		(*parser (word-ci "\\f"))
+		(*pack (lambda (_) "\f"))
+		;(*pack (lambda (_) #\f))
+
+		(*parser (word-ci "\\n"))
+		(*pack (lambda (_) "\n"))
+		;(*pack (lambda (_) #\n))
+
+		(*parser (word-ci "\\r"))
+		(*pack (lambda (_) "\r"))
+		;(*pack (lambda (_) #\r))
+
+		(*parser (word-ci "\\\\"))
+		(*pack (lambda (_) "\\"))
+		;(*pack (lambda (_) #\\))
 		(*disj 6)
 		done))
 
@@ -184,15 +235,21 @@
 		(*pack-with (lambda (pre x s comma) 
 			(if (null? s)
 			""
-			(integer->char (string->number (list->string `(,@s) )  16) ))))
+			 (integer->char (string->number (list->string `(,@s) )  16) ))))
 		done))
 
 
 (define <StringChar>
 	(new 
 		(*parser <StringMetaChar>)
+		;(*guard (lambda (a) (not (eq? a "\""))))
+		;(*pack (lambda (a) (display "StringMetaChar") a))
 		(*parser <StringHexChar>)
+		;(*guard (lambda (a) (not (eq? a "\""))))
+		;(*pack (lambda (a) (display "StringHexChar") a))
 		(*parser <StringLiteralChar>)
+		;(*guard (lambda (a) (not (eq? a "\""))))
+		;(*pack (lambda (a) (display "StringLiteralChar") a))
 		(*disj 3)
 		done))
 
@@ -202,12 +259,20 @@
 	(^<skipped*>
 	(new
 		(*parser (word "\""))
+		;(*pack (lambda (a)  (display "got brk1") (display "||") a ))
 		(*parser <StringChar>) 
-		(*guard (lambda (a) (not (equal? a #\"))  ))
+		(*guard (lambda (a) 
+			;(display "i got ") (display a) (display " and returned ")
+			;(display (char? a)) 
+			;(display (and (not (eq? a #\\)) (not (eq? a #\")) ))
+			(and (not (equal? a #\\)) (not (equal? a #\")) )))
 		*star
+		;(*pack (lambda (a)  (display "got lst") a))
 		(*parser (word "\""))
+		;(*pack (lambda (a)  (display "got brk2") a ))
 		(*caten 3)
 		(*pack-with (lambda (pre lst post) (list->string `(,@lst))  ))
+		;(*pack-with (lambda (pre lst post) (list->string lst)))
 		done)))
 
 
@@ -269,14 +334,16 @@
 		done)))
        
  (define <Fraction>
- 	;(^<skipped*>
+ (^<skipped*>
   (new (*parser <Integer>)
+  	   (*parser <whitespace>)
+  		*not-followed-by
        (*parser (char #\/))
        (*parser <Natural>)
        (*guard (lambda (n) (not (zero? n))))
        (*caten 3)
        (*pack-with (lambda (a div b) (/ a b)))
-       done))
+       done)))
 		
 (define <Number>
 	(^<skipped*>
@@ -286,11 +353,21 @@
          (*disj 2)
          done)))
 
+;(define <Number2>
+;	(^<skipped*>
+;		(new 
+;			(*parser <NumNum>)
+;			(*parser (range #\a #\z))
+;			(*parser (range #\A #\Z))
+;			(*disj 2)
+;			*not-followed-by
+;			done)))
+
+
 (define <OnlyNumbers>
-	(^<skipped*>
         (new 
                 (*parser (not-followed-by <Number> <Symbol>))
-                done)))
+                done))
 
 
 (define <ProperList>
@@ -464,15 +541,17 @@
 (define <BasicExpression>
 	(^<skipped*>
 	(new	 
-		 (*delayed (lambda () <InfixArrayGet>))
+		 (*delayed (lambda () <InfixSexprEscape>))
 		 (*delayed (lambda () <InfixFuncall>))
+		 (*delayed (lambda () <InfixArrayGet>))
 		 (*delayed (lambda () <InfixParen>))
+		 
 		 (*parser <Number>)
-
+		 (*delayed (lambda () <InfixNeg>))
 		 (*parser <InfixSymbol>)
 		 (*guard (lambda (a) (and (not (eq? a "(")) (not (eq? a ")")) (not (eq? a "]")) (not (eq? a "[")) )))
 		 
-		 (*disj 5)
+		 (*disj 7)
 	done)))
 
 (define <InfixPrefixExtensionPrefix>
@@ -578,13 +657,14 @@ done)))
 	(new 
 		(*delayed (lambda () <Number>))
 		(*delayed (lambda () <InfixSymbol>))
-		(*disj 2)
+		(*delayed (lambda () <InfixParen>))
+		(*disj 3)
 		;(*delayed (lambda () <BasicExpression>))
 		(*parser (word "("))
-		(*delayed (lambda () <InfixArgList>))
+		(*delayed (lambda () <InfixArgList>)) 
 		(*parser (word ")"))
 		(*caten 3)
-		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (cons exp1 exp2) ))) *star
+		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (cons exp1 exp2) ))) *plus
 		(*caten 2)
 		(*pack-with (lambda (exp1 lambdaExp) (fold-left (lambda (acc elment) (elment acc)) exp1 lambdaExp)))
 		
@@ -598,13 +678,14 @@ done)))
 	(new 
 		(*delayed (lambda () <Number>))
 		(*delayed (lambda () <InfixSymbol>))
-		(*disj 2)
+		(*delayed (lambda () <InfixParen>))
+		(*disj 3)
 		;(*delayed (lambda () <BasicExpression>))
 		(*parser (word "["))
 		(*delayed (lambda () <InfixAddOrSub>))
 		(*parser (word "]"))
 		(*caten 3)
-		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (list 'vector-ref exp1 exp2) ))) *star
+		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (list 'vector-ref exp1 exp2) ))) *plus
 		(*caten 2)
 		(*pack-with (lambda (exp1 lambdaExp) (fold-left (lambda (acc elment) (elment acc)) exp1 lambdaExp)))
 		;(*pack-with (lambda (exp1 brk1 exp2 brk2) (list 'vector-ref exp1 exp2) ))
@@ -642,8 +723,10 @@ done)))
 		;(*pack (lambda (a) (display "InfixFuncall\n") a))
 
 		(*parser <InfixAddOrSub>)
+		;(*pack (lambda (a) (display "InfixAddOrSub") a ))
 		;(*pack (lambda (a) (display "InfixAddOrSub\n") a))
-
+		(*parser <InfixSexprEscape>)
+		;(*pack (lambda (a) (display "InfixSexprEscape") a ))
 		;(*parser <InfixParen>)
 		;(*pack (lambda (a) (display "InfixParen\n") a))
 
@@ -653,7 +736,7 @@ done)))
 		;(*parser <InfixSexprEscape>)
 		;(*pack (lambda (a) (display "InfixSexprEscape\n") a))
 
-		;(*disj 2)
+		(*disj 2)
 		done)))
 
 (define <InfixExtension>
@@ -680,8 +763,7 @@ done)))
 		
 		;(*parser <Number>)
 		
-		
-		(*parser <Number>)
+		(*parser <OnlyNumbers>)
 		(*parser <Char>)
 		(*parser <Symbol>)
 		(*parser <String>)
