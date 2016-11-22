@@ -148,80 +148,15 @@
 		*diff
 		done))
 
-(define ^<meta-char>
-  (lambda (str ch)
-    (new (*parser (word str))
-	 (*pack (lambda (_) ch))
-	 done)))
+;(define <string-meta-char>
+ ; (new (*parser (word "\\\\"))
+  ;     (*pack (lambda (_) #\\))
 
-(define <StringMetaChar3>
-  (new (*parser (^<meta-char> "\\\\" #\\))
-       (*parser (^<meta-char> "\\\"" #\"))
-       (*parser (^<meta-char> "\\n" #\newline))
-       (*parser (^<meta-char> "\\r" #\return))
-       (*parser (^<meta-char> "\\t" #\tab))
-       (*parser (^<meta-char> "\\f" #\page)) ; formfeed
-       ;(*parser (^<meta-char> "\\{lambda}" (integer->char 955)))
-       ;(*parser (^<meta-char> "\\{alef}" (integer->char 1488)))
-       ;(*parser (^<meta-char> "\\{bismillah}" (integer->char 65021)))
-       ;(*parser (^<meta-char> "\\{smiley}" (integer->char 9786)))
+  ;     (*parser (word "\\\""))
+  ;     (*pack (lambda (_) #\"));
 
-       (*disj 6)
-       done))
-
-(define <StringMetaChar>
-(new
-
-		(*parser (word-ci "\\\""))
-		(*pack (lambda (_) #\"))
-
-		(*parser (word-ci "\\t"))
-		(*pack (lambda (_) #\t))
-
-		(*parser (word-ci "\\f"))
-		(*pack (lambda (_) #\f))
-
-		(*parser (word-ci "\\n"))
-		(*pack (lambda (_) #\n))
-
-		(*parser (word-ci "\\r"))
-		(*pack (lambda (_) #\r))
-
-		(*parser (word-ci "\\\\"))
-		(*pack (lambda (_) #\\))
-		(*disj 6)
-		done))
-
-
-(define <StringMetaChar2> 
-	(new
-
-		(*parser (word-ci "\\\""))
-		(*pack (lambda (_) "\""))
-		;(*pack (lambda (_) #\"))
-
-		(*parser (word-ci "\\t"))
-		(*pack (lambda (_) "\t"))
-		;(*pack (lambda (_) #\t))
-
-		(*parser (word-ci "\\f"))
-		(*pack (lambda (_) "\f"))
-		;(*pack (lambda (_) #\f))
-
-		(*parser (word-ci "\\n"))
-		(*pack (lambda (_) "\n"))
-		;(*pack (lambda (_) #\n))
-
-		(*parser (word-ci "\\r"))
-		(*pack (lambda (_) "\r"))
-		;(*pack (lambda (_) #\r))
-
-		(*parser (word-ci "\\\\"))
-		(*pack (lambda (_) "\\"))
-		;(*pack (lambda (_) #\\))
-		(*disj 6)
-		done))
-
+  ;     (*disj 2)
+  ;     done))
 
 ;; i added an if inside the lambda, is it ok?
 ;; why not really
@@ -238,43 +173,59 @@
 			 (integer->char (string->number (list->string `(,@s) )  16) ))))
 		done))
 
+(define ^<meta-char>
+  (lambda (str ch)
+    (new (*parser (word str))
+	 (*pack (lambda (_) ch))
+	 done)))
 
-(define <StringChar>
-	(new 
-		(*parser <StringMetaChar>)
-		;(*guard (lambda (a) (not (eq? a "\""))))
-		;(*pack (lambda (a) (display "StringMetaChar") a))
+(define <StringMetaChar>
+  (new (*parser (^<meta-char> "\\\\" #\\))
+       (*parser (^<meta-char> "\\\"" #\"))
+       (*parser (^<meta-char> "\\n" #\newline))
+       (*parser (^<meta-char> "\\r" #\return))
+       (*parser (^<meta-char> "\\t" #\tab))
+       (*parser (^<meta-char> "\\f" #\page)) 
+       (*disj 6)
+       done))
+
+
+
+
+
+;(define <String>
+;	(^<skipped*>
+;	(new
+;		(*parser (word "\""))
+;		(*parser <StringChar>) 
+;		(*guard (lambda (a) 
+;			(and (not (equal? a #\\)) (not (equal? a #\")) )))
+;		*star
+;		(*parser (word "\""))
+;		(*caten 3)
+;		(*pack-with (lambda (pre lst post) (fold-left string-append "" lst) )  )
+
+;		done)))
+
+(define <string-char>
+  (new        
+        (*parser <StringMetaChar>)
 		(*parser <StringHexChar>)
-		;(*guard (lambda (a) (not (eq? a "\""))))
-		;(*pack (lambda (a) (display "StringHexChar") a))
 		(*parser <StringLiteralChar>)
-		;(*guard (lambda (a) (not (eq? a "\""))))
-		;(*pack (lambda (a) (display "StringLiteralChar") a))
+		(*parser (char #\"))
+        *diff
 		(*disj 3)
-		done))
-
-
+       done))
 
 (define <String>
-	(^<skipped*>
-	(new
-		(*parser (word "\""))
-		;(*pack (lambda (a)  (display "got brk1") (display "||") a ))
-		(*parser <StringChar>) 
-		(*guard (lambda (a) 
-			;(display "i got ") (display a) (display " and returned ")
-			;(display (char? a)) 
-			;(display (and (not (eq? a #\\)) (not (eq? a #\")) ))
-			(and (not (equal? a #\\)) (not (equal? a #\")) )))
-		*star
-		;(*pack (lambda (a)  (display "got lst") a))
-		(*parser (word "\""))
-		;(*pack (lambda (a)  (display "got brk2") a ))
-		(*caten 3)
-		(*pack-with (lambda (pre lst post) (list->string `(,@lst))  ))
-		;(*pack-with (lambda (pre lst post) (list->string lst)))
-		done)))
+  (new (*parser (char #\"))
+       (*parser <string-char>) *star
+       (*parser (char #\"))
+       (*caten 3)
 
+       (*pack-with (lambda (open-delim chars close-delim) (list->string chars)))
+
+       done))
 
 ;; returns chars, is it ok??
 (define <SymbolChar>
@@ -364,6 +315,18 @@
 ;			done)))
 
 
+(define <SpecialSymbol>
+	(new
+		(*parser <Symbol>)
+		(*parser (char #\[))
+		(*parser (char #\]))
+		(*parser (char #\())
+		(*parser (char #\())
+		(*parser (char #\space))
+	(*disj 5)
+	*diff
+	done))
+
 (define <OnlyNumbers>
         (new 
                 (*parser (not-followed-by <Number> <Symbol>))
@@ -440,48 +403,6 @@
 		done)))
 
 
-;; helper parser - returns the type of parsed expression, instead of the parsed value
-(define <sexprh>
-	(new
-		(*parser <ImproperList>)
-		(*pack (lambda (_) `improperlist))
-
-		(*parser <ProperList>)
-		(*pack (lambda (_) `ProperList))
-
-		(*parser <Vector>) ;should be packed
-		(*pack (lambda (_) `Vector))
-
-		(*parser <Boolean>)
-		(*pack (lambda (_) `Boolean))
-
-		(*parser <Quoted>)
-		(*pack (lambda (_) `Quoted))
-
-		(*parser <QuasiQuoted>)
-		(*pack (lambda (_) `QuasiQuoted))
-
-		(*parser <Unquoted>)
-		(*pack (lambda (_) `Unquoted))
-
-		(*parser <UnquoteAndSpliced>)
-		(*pack (lambda (_) `UnquoteAndSpliced))
-
-		(*parser <Number>)
-		(*pack (lambda (_) `Number))
-
-		(*parser <Char>)
-		(*pack (lambda (_) `Char))
-
-		(*parser <Symbol>)
-		(*pack (lambda (_) `Symbol))
-
-		(*parser <String>)
-		(*pack (lambda (_) `String))
-
-		(*disj 12)
-		done))
-
 
 (define <InfixUndesirables>
 	(new
@@ -555,10 +476,11 @@
 	done)))
 
 (define <InfixPrefixExtensionPrefix>
+	(^<skipped*>
 	(new (*parser (word "##"))
 		 (*parser (word "#%"))
 		 (*disj 2)
-	done))
+	done)))
 
 ;; TODO: (define <InfixExpression> ...)
 
@@ -614,12 +536,13 @@ done)))
 
 
 (define <PowerSymbol>
+	(^<skipped*>
 	(new (*parser (word "^"))
 		 (*pack (lambda (a) (string->symbol "^")))
 		 (*parser (word "**"))
 		 (*pack (lambda (a) (string->symbol "**")))
 		 (*disj 2)
-	done))
+	done)))
 
 (define <InfixPow>
 	(^<skipped*>
@@ -771,3 +694,4 @@ done)))
 		(*disj 13)
 		done)))
 		
+
