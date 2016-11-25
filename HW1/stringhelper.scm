@@ -190,3 +190,48 @@
 		;(*pack-with (lambda (pre lst post) (list->string `(,@lst))  ))
 		(*pack-with (lambda (pre lst post) (strings->string lst) ))
 		done)))
+
+(define <digit-0-9> (range #\0 #\9))
+(define <digit-1-9> (range #\1 #\9))
+
+(define <Natural>
+	(new
+		(*parser <digit-0-9>) *plus
+		(*pack (lambda (a) (string->number (list->string a)) ))
+		done))
+
+(define <Integer>
+	(new 
+		(*parser (word "+"))
+		(*parser <Natural>)
+		(*caten 2)
+		(*pack-with (lambda (++ n) n))
+
+		(*parser (word "-"))
+		(*parser <Natural>)
+		(*caten 2)
+		(*pack-with (lambda (-- n ) (- n)))
+
+		(*parser <Natural>)
+
+		(*disj 3)
+		done))
+       
+ (define <Fraction>
+  (new (*parser <Integer>)
+  	   (*parser <whitespace>)
+  		*not-followed-by
+       (*parser (char #\/))
+       (*parser <Natural>)
+       (*guard (lambda (n) (not (zero? n))))
+       (*caten 3)
+       (*pack-with (lambda (a div b) (/ a b)))
+       done))
+		
+(define <Number>
+	(^<skipped*>
+    (new 
+         (*parser <Fraction>)
+         (*parser <Integer>)
+         (*disj 2)
+         done)))

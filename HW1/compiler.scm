@@ -24,9 +24,16 @@
 	 		(*caten 3)
 	done)))
 
-(define <sexpr-comment>
+(define <sexpr-comment2>
   (new (*parser (word "#;"))
        (*delayed (lambda () <sexpr2>))
+       (*caten 2)
+       done))
+
+
+(define <sexpr-comment>
+  (new (*parser (word "#;"))
+	    (*delayed (lambda () <sexpr>))
        (*caten 2)
        done))
 
@@ -51,19 +58,33 @@
 
 (define ^<skipped*> (^^<wrapped> (star <skip>)))
 
+(define <infix-comment>
+  (new (*parser (word "#;"))
+       (*delayed (lambda () <InfixExpression>))
+       (*caten 2)
+       done))
+
+(define <comment-infix>
+  (disj <line-comment>
+	<infix-comment>))
+
+(define <skip-infix>
+  (disj <comment-infix>
+	<whitespace>))
+
+(define ^<skipped-infix*> (^^<wrapped> (star <skip-infix>)))
 
 (define <digit-0-9> (range #\0 #\9))
 (define <digit-1-9> (range #\1 #\9))
 
 (define <Boolean> 
-	(^<skipped*>
 	(new
 		(*parser (word-ci "#t"))
 		(*pack (lambda (_) #t))
 		(*parser (word-ci "#f"))
 		(*pack (lambda (_) #f))
 		(*disj 2)
-		done)))
+		done))
 
 
 (define <CharPrefix> 
@@ -124,7 +145,6 @@
 
 
 (define <Char>
-	(^<skipped*>
 	(new 
 		(*parser <CharPrefix>)
 
@@ -135,7 +155,7 @@
 
 		(*caten 2)
 		(*pack-with (lambda (a s) `( ,@s) ))
-		done)))
+		done))
 
 
 ;Should be case sensitive
@@ -144,33 +164,19 @@
 	(new 
 		(*parser <any-char>)
 		(*parser (char #\\))
+		;(*pack (lambda (a) (string a)  ))
 		*diff
 		done))
 
+;(define <string-meta-char>
+ ; (new (*parser (word "\\\\"))
+  ;     (*pack (lambda (_) #\\))
 
-(define <StringMetaChar> 
-	(new
-		(*parser (word-ci "\\"))
-		(*pack (lambda (_) #\\))
+  ;     (*parser (word "\\\""))
+  ;     (*pack (lambda (_) #\"));
 
-		(*parser (word-ci "\""))
-		(*pack (lambda (_) #\"))
-
-		(*parser (word-ci "\t"))
-		(*pack (lambda (_) #\t))
-
-		(*parser (word-ci "\f"))
-		(*pack (lambda (_) #\f))
-
-		(*parser (word-ci "\n"))
-		(*pack (lambda (_) #\n))
-
-		(*parser (word-ci "\r"))
-		(*pack (lambda (_) #\r))
-
-		(*disj 6)
-		done))
-
+  ;     (*disj 2)
+  ;     done))
 
 ;; i added an if inside the lambda, is it ok?
 ;; why not really
@@ -184,32 +190,62 @@
 		(*pack-with (lambda (pre x s comma) 
 			(if (null? s)
 			""
-			(integer->char (string->number (list->string `(,@s) )  16) ))))
+			 (integer->char (string->number (list->string `(,@s) )  16) ))))
 		done))
 
+(define ^<meta-char>
+  (lambda (str ch)
+    (new (*parser (word str))
+	 (*pack (lambda (_) ch))
+	 done)))
 
-(define <StringChar>
-	(new 
-		(*parser <StringMetaChar>)
+(define <StringMetaChar>
+  (new (*parser (^<meta-char> "\\\\" #\\))
+       (*parser (^<meta-char> "\\\"" #\"))
+       (*parser (^<meta-char> "\\n" #\newline))
+       (*parser (^<meta-char> "\\r" #\return))
+       (*parser (^<meta-char> "\\t" #\tab))
+       (*parser (^<meta-char> "\\f" #\page)) 
+       (*disj 6)
+       done))
+
+
+
+
+
+;(define <String>
+;	(^<skipped*>
+;	(new
+;		(*parser (word "\""))
+;		(*parser <StringChar>) 
+;		(*guard (lambda (a) 
+;			(and (not (equal? a #\\)) (not (equal? a #\")) )))
+;		*star
+;		(*parser (word "\""))
+;		(*caten 3)
+;		(*pack-with (lambda (pre lst post) (fold-left string-append "" lst) )  )
+
+;		done)))
+
+(define <string-char>
+  (new        
+        (*parser <StringMetaChar>)
 		(*parser <StringHexChar>)
 		(*parser <StringLiteralChar>)
+		(*parser (char #\"))
+        *diff
 		(*disj 3)
-		done))
-
-
+       done))
 
 (define <String>
-	(^<skipped*>
-	(new
-		(*parser (word "\""))
-		(*parser <StringChar>) 
-		(*guard (lambda (a) (not (equal? a #\"))  ))
-		*star
-		(*parser (word "\""))
-		(*caten 3)
-		(*pack-with (lambda (pre lst post) (list->string `(,@lst))  ))
-		done)))
+  (new (*parser (char #\"))
+       (*parser <string-char>) *star
+       (*parser (char #\"))
+       (*caten 3)
 
+       (*pack-with (lambda (open-delim chars close-delim) (list->string chars)))
+
+       done))
 
 ;; returns chars, is it ok??
 (define <SymbolChar>
@@ -237,22 +273,18 @@
 
 
 (define <Symbol>
-	(^<skipped*>
 	(new 
 		(*parser <SymbolChar>) *plus
 		(*pack (lambda (s) (string->symbol (list->string s))))
-		done)))
+		done))
 		
 (define <Natural>
-	;(^<skipped*>
 	(new
 		(*parser <digit-0-9>) *plus
 		(*pack (lambda (a) (string->number (list->string a)) ))
 		done))
-;)
 
 (define <Integer>
-;	(^<skipped*>
 	(new 
 		(*parser (word "+"))
 		(*parser <Natural>)
@@ -268,10 +300,8 @@
 
 		(*disj 3)
 		done))
-;)
        
  (define <Fraction>
- 	;(^<skipped*>
   (new (*parser <Integer>)
   	   (*parser <whitespace>)
   		*not-followed-by
@@ -283,33 +313,61 @@
        done))
 		
 (define <Number>
-	(^<skipped*>
     (new 
          (*parser <Fraction>)
          (*parser <Integer>)
          (*disj 2)
-         done)))
+         done))
+
+;(define <Number2>
+;	(^<skipped*>
+;		(new 
+;			(*parser <NumNum>)
+;			(*parser (range #\a #\z))
+;			(*parser (range #\A #\Z))
+;			(*disj 2)
+;			*not-followed-by
+;			done)))
+
+
+(define <SpecialSymbol>
+	(new
+		(*parser <Symbol>)
+		(*parser (char #\[))
+		(*parser (char #\]))
+		(*parser (char #\())
+		(*parser (char #\())
+		(*parser (char #\space))
+	(*disj 5)
+	*diff
+	done))
+
+(define <SymbolNotNumber>
+  (new (*parser <Symbol>)
+       (*parser (range #\0 #\9))
+       *diff
+       done))
+
+
 
 (define <OnlyNumbers>
-	(^<skipped*>
         (new 
-                (*parser (not-followed-by <Number> <Symbol>))
-                done)))
+                (*parser (not-followed-by <Number> <SymbolNotNumber>))
+                done))
 
 
 (define <ProperList>
-	(^<skipped*>
 	(new
 		(*parser (word "("))
 		(*delayed (lambda () <sexpr2>) ) *star
+          ; (*pack (lambda (a) (display a) a))
 		(*parser (word ")"))
 		(*caten 3)
 		(*pack-with (lambda (pre s suf) s ))
-		done)))
+		done))
 
 
 (define <ImproperList>
-	(^<skipped*>
 	(new
 		(*parser (word "("))
 		(*delayed (lambda () <sexpr2>) ) *plus
@@ -318,96 +376,52 @@
 		(*parser (word ")"))
 		(*caten 5)
 		(*pack-with (lambda (brk1 exp1 point exp2 brk2) `(,@exp1 . ,exp2) ))
-		done)))
+		done))
 
 (define <Vector>
-	(^<skipped*>
 	(new
 		(*parser (word "#("))
-		(*delayed (lambda () <sexpr2>) ) *star
+		(*delayed (lambda () <sexpr2>) )
+           ;(*pack (lambda (a) (symbol->char a)))
+           *star
+           (*pack (lambda (a) a))
 		(*parser (word ")"))
 		(*caten 3)
 		(*pack-with (lambda (pre s suf) (list->vector s)  ))
-		done)))
+		done))
 
 (define <Quoted>
-	(^<skipped*>
 	(new
 		(*parser (word "'"))
 		(*delayed (lambda () <sexpr2>) )
 		(*caten 2)
 		(*pack-with (lambda (a s) (list 'quote s)))
-		done)))
+		done))
 
 (define <QuasiQuoted>
-	(^<skipped*>
 	(new
 		(*parser (word "`"))
 		(*delayed (lambda () <sexpr2>))
 		(*caten 2)
 		(*pack-with (lambda (a s) (list 'quasiquote s)))
-		done)))
+		done))
 
 (define <Unquoted>
-	(^<skipped*>
 	(new
 		(*parser (word ","))
 		(*delayed (lambda () <sexpr2>))
 		(*caten 2)
 		(*pack-with (lambda (a s) (list 'unquote s)))
-		done)))
+		done))
 
 (define <UnquoteAndSpliced>
-	(^<skipped*>
 	(new
 		(*parser (word ",@"))
 		(*delayed (lambda () <sexpr2>))
 		(*caten 2)
 		(*pack-with (lambda (a s) (list 'unquote-splicing s) ))
-		done)))
-
-
-;; helper parser - returns the type of parsed expression, instead of the parsed value
-(define <sexprh>
-	(new
-		(*parser <ImproperList>)
-		(*pack (lambda (_) `improperlist))
-
-		(*parser <ProperList>)
-		(*pack (lambda (_) `ProperList))
-
-		(*parser <Vector>) ;should be packed
-		(*pack (lambda (_) `Vector))
-
-		(*parser <Boolean>)
-		(*pack (lambda (_) `Boolean))
-
-		(*parser <Quoted>)
-		(*pack (lambda (_) `Quoted))
-
-		(*parser <QuasiQuoted>)
-		(*pack (lambda (_) `QuasiQuoted))
-
-		(*parser <Unquoted>)
-		(*pack (lambda (_) `Unquoted))
-
-		(*parser <UnquoteAndSpliced>)
-		(*pack (lambda (_) `UnquoteAndSpliced))
-
-		(*parser <Number>)
-		(*pack (lambda (_) `Number))
-
-		(*parser <Char>)
-		(*pack (lambda (_) `Char))
-
-		(*parser <Symbol>)
-		(*pack (lambda (_) `Symbol))
-
-		(*parser <String>)
-		(*pack (lambda (_) `String))
-
-		(*disj 12)
 		done))
+
 
 
 (define <InfixUndesirables>
@@ -419,14 +433,14 @@
 		(*parser (char #\]))
 		(*parser (char #\-))
 		(*parser (char #\*))
-		;(*parser (char #\**))
+		(*parser (word-ci "**" ))
 		(*parser (char #\^))
 		(*parser (char #\/))
-	(*disj 9)
+	(*disj 10)
 	done))
 
 (define <InfixSymbol> 
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new 
 		(*parser <SymbolChar>)
 		(*pack (lambda (a) `(,@a)))
@@ -436,6 +450,26 @@
 		(*pack (lambda (s) (string->symbol (list->string s))))
 		
 	done)))
+
+(define <InfixSymbolA>
+(new (*parser <SymbolChar>)
+     ;(*pack-with (lambda (a) (char-downcase a)))
+     (*parser (char #\+))
+     (*parser (char #\-))
+	 (*parser (char #\*))
+     (*parser (char #\^))
+	 (*parser (word-ci "**"))
+     (*parser (char #\/))
+	 (*parser (char #\())
+	 (*parser (char #\)))
+	 (*parser (char #\]))
+	 (*parser (char #\[))
+	 (*parser (char #\,))
+	 (*disj 11)
+	 *diff
+	 *plus
+	(*pack (lambda (a) (string->symbol (list->string  a))))
+done))
 
 ;(define <InfixSymbol2>
 ;	(new (*parser <Symbol>)
@@ -466,19 +500,21 @@
 ;	 )))
 
 (define <BasicExpression>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new	 
-		 
+		 (*delayed (lambda () <InfixSexprEscape>))
 		 (*delayed (lambda () <InfixFuncall>))
 		 (*delayed (lambda () <InfixArrayGet>))
 		 (*delayed (lambda () <InfixParen>))
 		 
 		 (*parser <Number>)
+		 ;(*pack (lambda (a) (display "iii") a))
 		 (*delayed (lambda () <InfixNeg>))
 		 (*parser <InfixSymbol>)
+		 ;(*pack (lambda (a) (display "i parsed") (display a) a))
 		 (*guard (lambda (a) (and (not (eq? a "(")) (not (eq? a ")")) (not (eq? a "]")) (not (eq? a "[")) )))
 		 
-		 (*disj 6)
+		 (*disj 7)
 	done)))
 
 (define <InfixPrefixExtensionPrefix>
@@ -502,7 +538,7 @@
 ;		done))
 
 (define <InfixAddOrSub>
-(^<skipped*>
+(^<skipped-infix*>
 (new (*delayed (lambda () <InfixMultOrDiv>))
      (*parser (char #\+))
 	 (*parser (char #\-))
@@ -517,15 +553,15 @@ done)))
 
 
 (define <InfixNeg>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new (*parser (word "-"))
-		 (*delayed (lambda () <InfixExpression>) )
+		 (*delayed (lambda () <BasicExpression>) )
 		 (*caten 2)
 		 (*pack-with (lambda (minus exp) `(- ,exp)))
 	done)))
 
 (define <InfixMultOrDiv>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new (*delayed (lambda () <InfixPow>))
 		 (*parser (char #\*))
 		 (*parser (char #\/))
@@ -541,15 +577,16 @@ done)))
 
 
 (define <PowerSymbol>
+		(^<skipped-infix*>
 	(new (*parser (word "^"))
 		 (*pack (lambda (a) (string->symbol "^")))
 		 (*parser (word "**"))
 		 (*pack (lambda (a) (string->symbol "**")))
 		 (*disj 2)
-	done))
+	done)))
 
 (define <InfixPow>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new (*parser <BasicExpression>)
 		 (*parser <PowerSymbol>)
 		 (*delayed (lambda () <InfixPow>))
@@ -565,7 +602,7 @@ done)))
 
 
 (define <InfixArgList>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new 
 		 (*delayed (lambda () <InfixAddOrSub>))
 
@@ -578,20 +615,49 @@ done)))
 		 (*pack-with (lambda (exp1 exp2) (cons exp1 exp2) ))
 	done)))
 
-
 (define <InfixFuncall> 
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new 
 		(*delayed (lambda () <Number>))
 		(*delayed (lambda () <InfixSymbol>))
 		(*delayed (lambda () <InfixParen>))
 		(*disj 3)
 		;(*delayed (lambda () <BasicExpression>))
+                (*parser (word "("))
+		(*parser <whitespace>) *star
+		(*parser (word ")"))
+                (*caten 3)
+                (*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (cons exp1 '())))) *plus
+		(*parser (word "("))
+		(*delayed (lambda () <InfixArgList>))
+		(*parser (word ")"))
+		(*caten 3)
+                (*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (cons exp1 exp2) ))) *plus
+                (*disj 2)
+		(*caten 2)
+		(*pack-with (lambda (exp1 lambdaExp) (fold-left (lambda (acc elment) (elment acc)) exp1 lambdaExp)))
+		
+		;(*parser <end-of-input>)
+		;(*caten 2)
+		;(*pack-with (lambda (a b) a ))
+    done)))
+
+(define <InfixFuncallOld> 
+		(^<skipped-infix*>
+	(new 
+		(*delayed (lambda () <Number>))
+           (*delayed (lambda () <InfixParen>))
+           (*delayed (lambda () <InfixSymbol>))
+		
+		(*disj 3)
+		(*parser <skip-infix>) *star
+		;(*delayed (lambda () <BasicExpression>))
 		(*parser (word "("))
 		(*delayed (lambda () <InfixArgList>)) 
 		(*parser (word ")"))
-		(*caten 3)
-		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (cons exp1 exp2) ))) *plus
+		(*parser <skip-infix>) *star
+		(*caten 5)
+		(*pack-with (lambda (a brk1 exp2 brk2 b) (lambda (exp1) (cons exp1 exp2) ))) *plus
 		(*caten 2)
 		(*pack-with (lambda (exp1 lambdaExp) (fold-left (lambda (acc elment) (elment acc)) exp1 lambdaExp)))
 		
@@ -601,18 +667,20 @@ done)))
     done)))
 
 (define <InfixArrayGet> 
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new 
 		(*delayed (lambda () <Number>))
-		(*delayed (lambda () <InfixSymbol>))
-		(*delayed (lambda () <InfixParen>))
+           (*delayed (lambda () <InfixParen>))
+           (*delayed (lambda () <InfixSymbol>))
 		(*disj 3)
 		;(*delayed (lambda () <BasicExpression>))
+		(*parser <whitespace>) *star
 		(*parser (word "["))
 		(*delayed (lambda () <InfixAddOrSub>))
 		(*parser (word "]"))
-		(*caten 3)
-		(*pack-with (lambda (brk1 exp2 brk2) (lambda (exp1) (list 'vector-ref exp1 exp2) ))) *plus
+		(*parser <whitespace>) *star
+		(*caten 5)
+		(*pack-with (lambda (a brk1 exp2 brk2 b) (lambda (exp1) (list 'vector-ref exp1 exp2) ))) *plus
 		(*caten 2)
 		(*pack-with (lambda (exp1 lambdaExp) (fold-left (lambda (acc elment) (elment acc)) exp1 lambdaExp)))
 		;(*pack-with (lambda (exp1 brk1 exp2 brk2) (list 'vector-ref exp1 exp2) ))
@@ -623,7 +691,7 @@ done)))
 
 
 (define <InfixParen>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new (*parser (word "("))
 		 (*delayed (lambda () <InfixAddOrSub>))
 		 (*parser (word ")"))
@@ -632,7 +700,7 @@ done)))
 	done)))
 
 (define <InfixSexprEscape>
-	(^<skipped*>
+		(^<skipped-infix*>
 	(new (*parser <InfixPrefixExtensionPrefix>)
 		 (*delayed (lambda () <sexpr2>))
 		 (*caten 2)
@@ -641,7 +709,7 @@ done)))
 
 
 (define <InfixExpression>
-	(^<skipped*>
+(^<skipped-infix*>
 	(new
 		;(*parser <InfixArrayGet>)
 		;(*pack (lambda (a) (display "InfixArrayGet\n") a ))
@@ -650,8 +718,10 @@ done)))
 		;(*pack (lambda (a) (display "InfixFuncall\n") a))
 
 		(*parser <InfixAddOrSub>)
+		;(*pack (lambda (a) (display "InfixAddOrSub") a ))
 		;(*pack (lambda (a) (display "InfixAddOrSub\n") a))
-
+		(*parser <InfixSexprEscape>)
+		;(*pack (lambda (a) (display "InfixSexprEscape") a ))
 		;(*parser <InfixParen>)
 		;(*pack (lambda (a) (display "InfixParen\n") a))
 
@@ -661,11 +731,11 @@ done)))
 		;(*parser <InfixSexprEscape>)
 		;(*pack (lambda (a) (display "InfixSexprEscape\n") a))
 
-		;(*disj 2)
+		(*disj 2)
 		done)))
 
 (define <InfixExtension>
-	(^<skipped*>
+	(^<skipped-infix*>
 	(new (*parser <InfixPrefixExtensionPrefix>)
 		 (*parser <InfixExpression>)
 		 (*caten 2)
@@ -677,22 +747,34 @@ done)))
 	(^<skipped*>
 	(new
 		(*parser <InfixExtension>)
+          ; (*pack (lambda (a) (display "<InfixExtension>") a))
 		(*parser <ImproperList>)
+         ;  (*pack (lambda (a) (display "<ImproperList>") a))
 		(*parser <ProperList>)
-		(*parser <Vector>) 
+   ;        (*pack (lambda (a) (display "<ProperList>") a))
+		(*parser <Vector>)
+    ;       (*pack (lambda (a) (display "<Vector>") a))
 		(*parser <Boolean>)
+     ;      (*pack (lambda (a) (display "<Boolean>") a))
 		(*parser <Quoted>)
+      ;     (*pack (lambda (a) (display "<Quoted>") a))
 		(*parser <QuasiQuoted>)
+       ;    (*pack (lambda (a) (display "<QuasiQuoted>") a))
 		(*parser <Unquoted>)
+        ;   (*pack (lambda (a) (display "<Unquoted>") a))
 		(*parser <UnquoteAndSpliced>)
+         ;  (*pack (lambda (a) (display "<UnquoteAndSpliced>") a))
 		
 		;(*parser <Number>)
 		
-		
-		(*parser <Number>)
+		(*parser <OnlyNumbers>)
+          ; (*pack (lambda (a) (display "<OnlyNumbers>") a))
 		(*parser <Char>)
+           ;(*pack (lambda (a) (display "<Char>") a))
 		(*parser <Symbol>)
+           ;(*pack (lambda (a) (display "s<Symbol>ymbol") a))
 		(*parser <String>)
+          ; (*pack (lambda (a) (display "<String>") a))
 		;(*disj 12)
 		(*disj 13)
 		done)))
