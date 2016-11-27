@@ -47,7 +47,6 @@
 		(else (display "\033[1;31m number of failed tests:\033[0m") (display failCounter) (display "\033[1;31m ##### SOME TESTS FAILED #####\033[0m\n")))
 		(newline))
 ))		
-
 (define booleanTests (list "#t" "#f" "   #t" "#f   " "  #t    "))
 	 
 (define numberTests
@@ -61,7 +60,7 @@
 		"#\\return" "#\\tab" "#\\x41" "#\\x23" "#\\x20" "  #\\xab   "
 		"#\\x0" 
 		;"#\\x110000"
- 		"#\\abc" "#\\x" "#\\x[2]" "#\\abc[1]"
+		 "#\\abc" "#\\x" "#\\x[2]" "#\\abc[1]"
 	  ))
 	  
 (define stringTests
@@ -70,7 +69,7 @@
 	  "\"\\n\"" "\"\\r\"" "\"\\x09af;\"" "\"\\x41;\""
 	  "\" 4 1;\"" "    \"  Akuna Matata  \"    "
 	  "\"\\x0;\""
-	 ; "\"\\x110000;\"" 
+	  "\"\\x110000;\"" 
 	  "\"\\x40; ABC \\t \\\" \" "
 	  ))
 
@@ -106,22 +105,22 @@
   
 (define quotedTests
   (list 
-    "'123" "'#t" "'#\\lambda" "'\"123a\"" "  'a123   " 
+    "'123" "'#t" "'#\\lambda" "'\"123a\"" "  'a123   " "  '   1SymbolWithSpacesAfterQuote456  "
   ))
   
 (define quasiquotedTests
   (list 
-    "`123" "`#t" "`#\\lambda" "`\"123a\"" "   `a123  " 
+    "`123" "`#t" "`#\\lambda" "`\"123a\"" "   `a123  "  "  `   2SymbolWithSpacesAfterQuasiQuote321  "
   ))
   
 (define unquotedTests
   (list 
-    ",123" ",#t" ",#\\lambda" ",\"123a\"" "   ,a123  " 
+    ",123" ",#t" ",#\\lambda" ",\"123a\"" "   ,a123  " "  ,  ASymbolWithSpacesAfterUnquoted123  "
   ))
   
 (define unquoteAndSplicedTests
   (list 
-    ",@123" ",@#t" ",@#\\lambda" ",@\"123a\"" "  ,@a123   " 
+    ",@123" ",@#t" ",@#\\lambda" ",@\"123a\"" "  ,@a123   " "  ,@  ASymbolWithSpacesAfterUnquoted123  "
   ))
   
 (define infixArrayGetTests
