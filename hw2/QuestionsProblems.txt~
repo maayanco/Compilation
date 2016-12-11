@@ -1,7 +1,0 @@
-Why is this okay?
-
-(parse '123) ==> (const 123)
-but
-(parse 'a) ==> (var a)
-
-(parse '123x) ==> (var \x31;23x)
