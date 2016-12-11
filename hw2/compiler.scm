@@ -4,7 +4,7 @@
   (lambda (val)
     (or
      (equal? val `,(void))
-     (equal? val `())
+     (equal? val ''())
      (vector? val)
      (boolean? val)
      (char? val)
@@ -78,6 +78,16 @@
     ;((required (a b c d)) (opt e))
     ; (simple (a b c))
     ; (var moshe)
+       (define seq?
+         (lambda (exp)
+         (and (list? exp) (equal? (car exp) 'seq))))
+
+(define beginify
+	(lambda (s)
+		(cond
+			((null? s) *void-object*)
+			((null? (cdr s)) (cdr s))
+			(else `(begin ,@s)))))
        
 (define parse-2
   (let ((run
@@ -126,36 +136,52 @@
             (lambda (var exp) `(set (var ,var) ,(parse-2 exp) )))
            (pattern-rule ;;sequence
             `(begin ,(? 'val1) . ,(? `vals-lst))
-            (lambda (val1 vals-lst) `(seq ( ,(parse-2 val1) ,@(map parse-2 vals-lst)))))
+            (lambda (val1 vals-lst)
+              `(seq ( ,(parse-2 val1)
+                      ,@(map
+                         
+                      (lambda (item) (let ((parsed-item (parse-2 item)))
+                                       (if seq? parsed-item)
+                                       ((lambda ()
+                                          (display "\\")
+                                          ;(display (cadr parsed-item))
+                                          (display parsed-item)
+                                          (display "//\n")
+                                          (cadr parsed-item)))
+                                       parsed-item))
+                      vals-lst)))))
+             
            
            (pattern-rule ;;let
             `(let () ,(? `exprs-lst))
-            (lambda (exprs-lst) (parse-2 `((lambda () exprs-lst) ()))))
-          ; (pattern-rule ;;let
-           ; `(let ((,(? `var) ,(? `val)) . ,(? `rest)) . ,(? `exprs-lst))
-            ;(lambda (var val rest exprs-lst)
-             ; (cond
-              ;  ((equal? exprs-lst '()) `(lambda () ))
-                    
+            (lambda (exprs-lst)
+              (parse-2 `((lambda () ,exprs-lst)))))
+           (pattern-rule
+            `(let ((,(? 'var var?) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
+            (lambda (var val rest exprs)
+              (let ((vars (cons var (map car rest)))
+                    (vals (cons val (map cadr rest))))
+                (display "the vars:")
+                (display vars)
+                (display "\n the vals:")
+                (display vals)
+                (display "\n")
+               (parse-2 `((lambda (,@vars) ,@exprs) ,@vals)))))
+		(pattern-rule ;;let*
+                `(let* () ,(? 'expr) . ,(? 'exprs list?))
+                (lambda (expr exprs)
+                  (display "hello")
+                  (parse-2 (cons 'begin (cons expr exprs)))))
+		(pattern-rule
+                 `(let* ((,(? 'var) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
+                 (lambda (var val rest exprs) (parse `(let ((,var val)) (let* ,rest . ,exprs)))))
            (pattern-rule ;;application
             `( ,(? `var not-is-reserved?) . ,(? `vars-lst))
             (lambda (var vars-lst) `(applic ,(parse-2 var) ,(map parse-2 vars-lst))))
            
           (pattern-rule
            (? 'v var?) (lambda (v) `(var ,v)))
-          ;(pattern-rule
-           ;(
-		;(pattern-rule ;;let* with no vars
-           ;  `(let* () ,(? 'expr) . ,(? 'exprs list?))
-           ;   (lambda (expr exprs) (parse (beginify (cons expr exprs)))))
-		;(pattern-rule ;;let*
-		;  `(let* ((,(? 'var var?) ,(? `val val?)) . ,(? 'rest)) . ,(? 'exprs))
-            ;  (lambda (var val rest exprs) (parse `(let ((,var val)) (let* ,rest . ,exprs)))))          
-             ;(map (lambda (expr) (parse expr)) list-exprs)))
-          ;(pattern-rule
-          ;(? 'v var?) (lambda (v) (if (symbol? v)
-          ;                           `(var ,(string->list (symbol->string v)))
-          ;                            `(var ,@v))))
+          
           
           )))
          (lambda (e) (run e
