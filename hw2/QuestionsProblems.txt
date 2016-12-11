@@ -7,3 +7,14 @@ but
 Problem:
 (parse '123x) ==> (var \x31;23x) 
 instead of (var 123x)
+
+
+Problems:
+Define-MIT:
+(define a b c d) isn't working
+
+Lambda: - fixed!!!
+    lambda's whose body contains more than one expression aren't parsed correctly
+    
+Begin:
+    need to take care of recursive begin

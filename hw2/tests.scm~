@@ -3,7 +3,6 @@
 
 (define my-parse-func parse-2)
 (define staff-parse-func parse)
-(define error-counter 0)
 
 (define try-catch
   (lambda (try-thunk catch-thunk)
@@ -18,8 +17,7 @@
 			;(display my-res)
 			(cond ((equal? my-res staff-res)
 				(display (format "\033[1;32m Success! ☺ \033[0m \n")) #t)
-				(else
-                           (set! error-counter (+ error-counter 1))
+				(else 
 				(display (format "\033[1;31m Failed! ☹\033[0m , Expected: ~s, Actual: ~s \n" staff-res my-res)) #f))
 			)))
 			
@@ -44,11 +42,7 @@
     (let ((results (map (lambda (test) (runTests (car test) (cdr test))) lst)))
       	(cond ((andmap (lambda (exp) (equal? exp #t)) results)		
 		(display "\033[1;32m !!!!!  ☺  ALL TESTS SUCCEEDED  ☺  !!!!\033[0m\n"))
-		(else
-                 (display "\033[1;31m ##### Number of failures: ")
-                 (display  error-counter)
-                 (display  "#####\033[0m\n")
-                 (display "\033[1;31m #####  ☹  SOME TESTS FAILED  ☹  #####\033[0m\n")))
+		(else (display "\033[1;31m #####  ☹  SOME TESTS FAILED  ☹  #####\033[0m\n")))
 		(newline))
 ))
 
