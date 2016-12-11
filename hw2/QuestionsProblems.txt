@@ -1,0 +1,9 @@
+Why is this okay?
+
+(parse '123) ==> (const 123)
+but
+(parse 'a) ==> (var a)
+
+Problem:
+(parse '123x) ==> (var \x31;23x) 
+instead of (var 123x)
