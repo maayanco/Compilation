@@ -88,7 +88,14 @@
 			((null? s) *void-object*)
 			((null? (cdr s)) (cdr s))
 			(else `(begin ,@s)))))
-       
+
+(define nested-if
+  (lambda (exprs)
+    (cond ((equal? (length exprs) 2) `(if ,(car exprs) ,(cadr exprs) #f))
+          (else `(if ,(car exprs) ,(nested-if (cdr exprs)) #f))
+    
+        )))
+
 (define parse-2
   (let ((run
          (compose-patterns
@@ -143,15 +150,18 @@
                       (lambda (item) (let ((parsed-item (parse-2 item)))
                                        (if seq? parsed-item)
                                        ((lambda ()
-                                          (display "\\")
-                                          ;(display (cadr parsed-item))
-                                          (display parsed-item)
-                                          (display "//\n")
                                           (cadr parsed-item)))
                                        parsed-item))
                       vals-lst)))))
-             
-           
+           (pattern-rule ;;and
+            `(and)
+            (lambda () (parse-2 #t)))
+           (pattern-rule
+            `(and ,(? `expr) . ,(? `exprs))
+            (lambda (expr exprs)
+              (if (equal? exprs `())
+                  (parse-2 expr)
+                  (parse-2 (nested-if (cons expr exprs))))))
            (pattern-rule ;;let
             `(let () ,(? `exprs-lst))
             (lambda (exprs-lst)
@@ -161,16 +171,11 @@
             (lambda (var val rest exprs)
               (let ((vars (cons var (map car rest)))
                     (vals (cons val (map cadr rest))))
-                (display "the vars:")
-                (display vars)
-                (display "\n the vals:")
-                (display vals)
-                (display "\n")
+
                (parse-2 `((lambda (,@vars) ,@exprs) ,@vals)))))
 		(pattern-rule ;;let*
                 `(let* () ,(? 'expr) . ,(? 'exprs list?))
                 (lambda (expr exprs)
-                  (display "hello")
                   (parse-2 (cons 'begin (cons expr exprs)))))
 		(pattern-rule
                  `(let* ((,(? 'var) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
