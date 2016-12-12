@@ -89,12 +89,21 @@
 			((null? (cdr s)) (cdr s))
 			(else `(begin ,@s)))))
 
-(define nested-if
+(define nested-if ;;for and macro expansion
   (lambda (exprs)
     (cond ((equal? (length exprs) 2) `(if ,(car exprs) ,(cadr exprs) #f))
           (else `(if ,(car exprs) ,(nested-if (cdr exprs)) #f))
     
         )))
+
+(define nested-if-cond ;;for cond macro expansion
+  (lambda (exprs) ;;exprs is a list of pairs
+    (cond  ((and (not (equal? exprs `())) (list? (car exprs)) (not (equal? (caar exprs) 'else)))
+           `(if ,(caar exprs) ,@(cdar exprs) ,(nested-if-cond (cdr exprs))))
+           ((and (not (equal? exprs '())) (equal? (caar exprs) 'else)) (cadar exprs)))
+    ))
+          
+
 
 (define parse-2
   (let ((run
@@ -162,6 +171,20 @@
               (if (equal? exprs `())
                   (parse-2 expr)
                   (parse-2 (nested-if (cons expr exprs))))))
+           (pattern-rule
+            `(cond ,(? `expr) . ,(? `exprs-lst))
+            (lambda (expr exprs-lst)
+              (let 
+                  ((new-exprs (map (lambda (item) (if (and (list? (cdr item)) (not (equal? (length (cdr item)) 1)))
+                                       ; (begin ;(display (list (car item) (cons `begin (cdr item))))
+                                              ; (display "||\n")
+                                               (list (car item) (cons `begin (cdr item)))
+                                               item))
+                                      (cons expr exprs-lst))))
+               ; (display "exprs:") (display new-exprs) (display "end-exprs")
+            ;    (map (lambda (item) (display "{") (display item) (display "}\n")) exprs)
+                (parse-2 (nested-if-cond new-exprs))
+                )))
            (pattern-rule ;;let
             `(let () ,(? `exprs-lst))
             (lambda (exprs-lst)
