@@ -24,9 +24,12 @@
 
 (define is-smallest?
   (lambda (expr)
+    ;(display "expr is:") (display expr) (display "\n")
     (if (not (list? expr))
         #f
-        (andmap (lambda (item) (if (not (list? item)) #t #f)) expr))))
+         (begin 
+                (andmap (lambda (item) (if (or (quote? item) (not (list? item))) #t #f)) expr))
+         )))
 
 (define not-empty?
   (lambda (a) (if (equal? a '()) #f #t)))
@@ -65,52 +68,28 @@
     (set! saved-vars (cons lst saved-vars))))
 
 
-(define go-over-exp
-  (lambda (exp original-exp)
-          (if (or (not (list? exp)) (not (not-empty? exp)))
-              (if (equal? exp `())
-                  (begin ;(display "\n i'm super `() out")
-                    original-exp)
-                  (begin ;(display "\n im out") (display exp)
-                         exp))
 
-              (begin
-              ;      (display "\n i'm in!!")
-                  ;;all the rest of this lambda happens only if exp is a list and not empty..
-                ;(display "hellllllllo")
-               (display "is this a quote expression? ") (display (quote? exp)) (display " and the expression is:") (display exp) (display "\n")
-                  (if (and (is-smallest? exp) (not (quote? exp)) (> (get-occurrences-num original-exp exp) 1)) ;; we have found a good expression
-                      ;;then clause
-                      (begin   
-                               (let* ((gensym-name (gensym))
-                                      (replaced-exp (go-over-and-replace original-exp exp gensym-name)))
-                                 (update-saved-vars (list gensym-name exp))
-                                 replaced-exp))
-                      
-                      ;;we haven't found a recurring smallest, we will search inside the car or in the cdr
-                      (begin 
-                      (let* ((ret-car-expr (go-over-exp (car exp) original-exp)))
-                         (if (equal? ret-car-expr (car exp))
-                             ;;then : nothing changed, we need to search in the cdr
-                             (go-over-exp (cdr exp) original-exp)
-                             ;;else - it did change! we will return the changed exp
-                              ret-car-expr))))))))
-
-
+;(define go-over-exp-much-better
+  
+;;;;; there is a problemmm here!!! 
 (define go-over-exp-better
   (lambda (exp original-exp)
           (if (or (not (list? exp)) (not (not-empty? exp)))
               (if (equal? exp `())
-                  (begin ;(display "\n i'm super `() out")
+                  (begin ;(display "\n OUT!") (display exp) (display "\n")
                     original-exp)
-                  (begin ;(display "\n im out") (display exp)
+                  (begin ;(display "\n im outii") (display exp) (display "\n")
                          exp))
 
               (begin
               ;      (display "\n i'm in!!")
                   ;;all the rest of this lambda happens only if exp is a list and not empty..
                 ;(display "hellllllllo")
-                ;(display "is this a quote expression? ") (display (quote? exp)) (display " and the expression is:") (display exp) (display "\n")
+               ; (display "\n\n is this a valid smallest? ")          (display (is-smallest? exp))
+                                                             ;        (display (not (quote? exp)))
+                                                          ;           (display (> (get-occurrences-num original-exp exp) 1))
+                                                            ;         (display "\n")
+              ;  (display " \n and the expression is:") (display exp) (display "\n")
                   (cond ((and (is-smallest? exp) (not (quote? exp)) (> (get-occurrences-num original-exp exp) 1)) ;; we have found a good expression
                       ;;then clause
                       (begin   
@@ -118,13 +97,19 @@
                                       (replaced-exp (go-over-and-replace original-exp exp gensym-name)))
                                  (update-saved-vars (list gensym-name exp))
                                  replaced-exp)))
+                        ;; we didn't find a good expression, we need to search for it in the car or cdr
                         ((not (quote? exp))
                              (let* ((ret-car-expr (go-over-exp-better (car exp) original-exp))) ;; we went inside the car!!
-                               (if (equal? ret-car-expr (car exp))
+                              ; (display "\n i'm mmmaayan \n") 
+                               (if (or (equal? ret-car-expr (car exp)) (equal? ret-car-expr original-exp))
                                    ;;then : nothing changed, we need to search in the cdr
-                                   (go-over-exp-better (cdr exp) original-exp)
+                                   (begin ;(display "entering the cdr..")
+                                          (go-over-exp-better (cdr exp) original-exp))
                                    ;;else - it did change! we will return the changed exp
-                                   ret-car-expr)))
+                                   (begin ;(display "car has changed and we'll just return it\n")
+                                          ;(display "car before:") (display (car exp)) (display "\n")
+                                         ; (display "car after:") (display ret-car-expr) (display "\n")
+                                          ret-car-expr))))
                         (else exp))))))
                              
                     
@@ -141,51 +126,21 @@
               (begin ;(display "changed! go again: ") (display " before: ") (display exp) (display " after: ") (display new-exp) (display " \n")
                      (apply-goe-rec new-exp new-exp))))))
 
- (define delete
+(define delete-once
   (lambda (item lst)
-    (cond
-     ((equal? item (car lst)) (cdr lst))
-     (else (cons (car lst) (delete item (cdr lst)))))))
-
-
-  
-(define remove-duplicates2
-  (lambda (body)
-    ;; go over saved-vars and body
-    (display "hello i'm inside remove-duplicates")
-    (let ((exp (cons saved-vars body)))
-       ;;for every element in saved-vars, go over exp and check:
-       (map
-        (lambda (element)
-          (let ((var (car element)))
-            (if (equal? (get-occurrences-num exp var) 2)
-                (begin ;(display "\nvar is:") (display var) (display "\n")
-                (set! saved-vars (delete var saved-vars))));;(instead of var should i send (car element?)
-            ))
-        saved-vars)
-    )))
-
-(define remove-duplicates
-  (lambda (body)
-    (begin
-    ;; go over saved-vars and body
-    ;(display "hello i'm inside remove-duplicates")
-    ;(display "i got the body:") (display body)
-   ; (display "and saved vars is:") (display saved-vars) (display "\n")
-    (let ((exp (cons saved-vars body)))
-       ;;for every element in saved-vars, go over exp and check:
-       (map
-        (lambda (element)
-          (let ((var (car element)))
-            (if (equal? (get-occurrences-num exp var) 2)
-                (begin ;(display "\nvar is:") (display var) (display "\n")
-                (set! saved-vars (delete var saved-vars))));;(instead of var should i send (car element?)
-            ))
-        saved-vars))
-    )))
+    ;(display "inside delete-once \n")
+    ;(display "item:") (display item) (display "\n") (display "lst") (display lst) (display "\n") 
+    (if (and (list? lst) (not (equal? lst '())))
+        (cond
+          ((equal? item (car lst)) (cdr lst))
+          (else (cons (car lst) (delete-once item (cdr lst)))))
+     (begin
+       ;(display "oops")
+       item))))
 
 (define replace
  (lambda (exp old-item new-item)
+ ;  (display "replace \n")
    ;(display "current exp:") (display exp) (display "\n")
    (if (equal? exp old-item)
        new-item
@@ -194,47 +149,68 @@
            exp)
     )))
 
-(define test
-  (lambda (exp)
-    (map (lambda (item) (display "item") (delete item exp)) exp)
-    ))
+
+;; at the beggining the lst-of-pairs and original-lst are the same (they are both saved-vars)
+;; but when we go over a pair
+(define remove-dups
+  (lambda (body lst-of-pairs updated-lst)
+    (if (equal? lst-of-pairs `())
+        updated-lst
+        (let ((var (caar lst-of-pairs))
+              (val (cdar lst-of-pairs)))
+          (if (equal? (get-occurrences-num (cons body updated-lst) var) 2)
+              (remove-dups body (cdr lst-of-pairs) (replace (delete-once pair lst) var val))
+              (remove-dups body (cdr lst-of-pairs) updated-lst)
+              )))))
+     ;; i want to go over the list, if (car lst) is occ 2 as i want, i take it and change lst and envoke remove-dups on the new lst
+     ;; if the car doesn't fit my demands i continue to cdr lst 
+
+(define get-pair-with-dup-2
+  (lambda (params-lst body)
+   ; (display "inside get-pair-with-dup-2\n")
+  ;  (display "params-lst: ")(display params-lst) (display "\n")
+  ;  (display "body: ")(display body) (display "\n")
+    (let ((new-lst (map
+                   (lambda (item)
+                     (if (equal? (get-occurrences-num (cons params-lst body) (car item)) 2) item '() ))
+                   params-lst)))
+      ;(display new-lst)
+      ;(display "outside new-lst\n")
+      ;(display "new-lst:") (display new-lst)
+     ; (display "new list:") (display (filter (lambda (item) (not (equal? `()  item))) new-lst)) (display "\n")
+      (filter (lambda (item) (not (equal? `()  item))) new-lst))))
+      ;(display (fold-right append '() new-lst)) (display "\n")
+       ;(fold-right append '() new-lst))))
 
 (define remove-dups
-  (lambda (body orig-saved-vars)
-    (display "In remove dups\n")
-    (let ((exp (cons body orig-saved-vars)))
-      (map
-       (lambda (pair)
-         (if (equal? (get-occurrences-num exp (car pair)) 2)
-             (begin (display "we have occ number 2!\n")
-                    (let ((var (car pair)) (val (cadr pair)))
-                      (set! orig-saved-var (delete pair orig-saved-vars))
-                      (set! orig-saved-vars (replace orig-saved-vars var val))))
-             pair))
-             ;;first we will remove the pair we want
-             ;;go over the entire body and saved-vars, every where where there is (car pair) i need to replace it with (cadr pair)
-             ;;now we delete pair from saved-vars
-       orig-saved-vars)
-      (display "orig-saved-vars:") (display orig-saved-vars) (display "\n")
-     )))
+  (lambda (body lst)
+    ;(display "ver\n")
+    (let ((list-of-pairs (get-pair-with-dup-2 lst body)))
+      (if (or (equal? list-of-pairs `()) (equal? list-of-pairs `(())))
+          lst
+          (begin
+            (let ((lst-after-delete (delete-once (car list-of-pairs) lst)))
+              (begin ;(display "lst after delete: ") (display lst-after-delete) (display "\n")
+                     (let ((lst-after-replace (replace lst-after-delete (caar list-of-pairs) (cadar list-of-pairs)))
+                           (body-after-replace (replace body (caar list-of-pairs) (cadar list-of-pairs))))
+                      ; (display "lst after replace:") (display lst-after-replace) (display "\n")
+                       ;(display "body: ") (display body-after-replace) (display "\n")
+                       (remove-dups body lst-after-replace)))))))))
+
+
+        
+
 
 (define cse-2
   (lambda (exp)
+    ;(display "\n current exp im working on:") (display exp) (display "\n")
     (set! saved-vars '())
     (let ((res (apply-goe-rec exp exp)))
-      (remove-dups res saved-vars)
+    ;  (display "res before:") (display saved-vars) (display "\n")
+     ; (display "body before:") (display res) (display "\n")
+      (set! saved-vars (remove-dups res saved-vars))
       (cond ((equal? (length saved-vars) 0) res)
              ((> (length saved-vars) 1) `(let* ,saved-vars ,res))
              (else `(let ,saved-vars ,res))))))
 
 
-(define cse-22
-  (lambda (exp)
-    ;(display "current exp im working on:") (display exp) (display "\n")
-    (set! saved-vars '())
-    (let ((res (apply-goe-rec exp exp)))
-      (remove-duplicates res)
-      (cond ((equal? (length saved-vars) 0) res)
-             ((> (length saved-vars) 1) `(let* ,saved-vars ,res))
-             (else `(let ,saved-vars ,res))))))
-    
