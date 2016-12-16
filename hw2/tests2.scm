@@ -9,6 +9,9 @@
 (load "cse.scm")
 (load "cse.so")
 
+(define error-counter 0)
+(define possible-counter 0)
+
 (define my-parse-func cse-2)
 (define staff-parse-func cse)
 
@@ -89,9 +92,9 @@
 			  (lambda ()
 			    (cond ((or (equal? staff-res my-res) (verify-equality input))
 				    (display (format "\033[1;32m Success! ☺ \033[0m \n")) #t)
-				    (else 
+				    (else (set! error-counter (+ error-counter 1))
 				    (display (format "\033[1;31m Failed! ☹\033[0m , Expected: ~s, Actual: ~s \n" staff-res my-res)) #f)))
-			  (lambda () (display (format "\n\033[1;34mUNABLE TO DETERMINE SUCESS/FAILURE!\nPLEASE CHECK MANUALLY THE INPUT: ~s\033[0m\n" input)) #f))
+			  (lambda () (set! possible-counter (+ possible-counter 1)) (display (format "\n\033[1;34mUNABLE TO DETERMINE SUCESS/FAILURE!\nPLEASE CHECK MANUALLY THE INPUT: ~s\033[0m\n" input)) #f))
 			))))
 			
 			
@@ -116,7 +119,8 @@
     (let ((results (map (lambda (test) (runTests (car test) (cdr test))) lst)))
       	(cond ((andmap (lambda (exp) (equal? exp #t)) results)		
 		(display "\033[1;32m !!!!!  ☺  ALL TESTS SUCCEEDED  ☺  !!!!\033[0m\n"))
-		(else (display "\033[1;31m #####  ☹  SOME TESTS FAILED  ☹  #####\033[0m\n")))
+		(else (display error-counter) (display " tests failed\n") (display possible-counter) (display " tests are undetermined\n")  
+                 (display "\033[1;31m #####  ☹  SOME TESTS FAILED  ☹  #####\033[0m\n")))
 		(newline))
 ))
 
