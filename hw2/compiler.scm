@@ -1,3 +1,4 @@
+
 (include "pattern-matcher.scm")
 
 (define ^quote?
@@ -99,6 +100,7 @@
       (optimize-qq-expansion
        (expand-qq e)))))
 
+
 (define not-empty?
   (lambda (lst)
     (if (equal? lst `()) #f #t)))
@@ -107,6 +109,7 @@
   (lambda (val)
     (or
      (equal? val `,(void))
+     ;(equal? val ''())
      (equal? val '())
      (vector? val)
      (boolean? val)
@@ -204,6 +207,24 @@
   (lambda (expr)
     (fold-left (lambda (l r)  (if (and (list? r) (equal? `begin (car r)))  (append l (beginify (cdr r))) `(,@l ,r))) '() expr)))
 
+(define check-lambda-params-diff
+  (lambda (params)
+     ; (display "vars:") (display vars) (display "\n")
+      (andmap (lambda (item) ;(display (length (remove item vars)) ) (display "\n") (display (length vars)) (display "\n") 
+                (equal? (length (remove item params)) (- (length params) 1) )) 
+              params)
+    ))
+
+(define check-let-params-diff
+  (lambda (params)
+    ;(display "params:") (display params) (display "\n")
+    (let ((vars (map car params)))
+     ; (display "vars:") (display vars) (display "\n")
+      (andmap (lambda (item) ;(display (length (remove item vars)) ) (display "\n") (display (length vars)) (display "\n") 
+                (equal? (length (remove item vars)) (- (length vars) 1) )) 
+              vars))
+    ))
+
 (define parse-2
   (let ((run
          (compose-patterns
@@ -230,22 +251,36 @@
           (pattern-rule ;;lambda
            `(lambda ,(? `args) ,(? `exprs) . ,(? `exprs-lst))
            (lambda (args exprs exprs-lst)
-             (let ((identified-lambda (identify-lambda args (lambda (s) `(simple ,s)) (lambda (s opt) `((required ,s) (opt ,opt))) (lambda (var) `(var ,var)))))
-             (if (equal? exprs-lst '())
-                 (expand-lambda identified-lambda exprs)
-                 (expand-lambda identified-lambda (cons 'begin (cons exprs exprs-lst)))
-             ))))
+             (if (and (list? args) (not (check-lambda-params-diff args)))
+                 (error 'parse  (format "I can't recognize this: ~s" args))
+                 (let ((identified-lambda (identify-lambda args (lambda (s) `(simple ,s)) (lambda (s opt) `((required ,s) (opt ,opt))) (lambda (var) `(var ,var)))))
+                   (if (equal? exprs-lst '())
+                       (expand-lambda identified-lambda exprs)
+                       (expand-lambda identified-lambda (cons 'begin (cons exprs exprs-lst)))
+                       ))
+                 )
+             ))
             (pattern-rule ;;quasi-quote
              `(quasiquote . ,(? 'args))
              (lambda (args)
                ;(display (car args)) (display "||\n")
                (parse-2 (expand-qq (car args)))))
+            
            (pattern-rule ;;define MIT
             `(define ( ,(? `var1) . ,(? `vars-lst) ) ,(? `exp1) . ,(? `exps-lst))
             (lambda (var1 vars-lst exp1 exps-lst)
              (if (equal? exps-lst `()) 
               `(def (var ,var1) ,(parse-2 `(lambda ,vars-lst ,exp1)))
               `(def (var ,var1)  ,(parse-2 `(lambda ,vars-lst ,exp1 ,@exps-lst))))))
+           (pattern-rule
+            `(define ,(? `var) . ,(? `vars list?))
+            (lambda (var vars)
+              (if (equal? vars `())
+                   (error 'parse
+		    (format "Unknown form: ~s" (cons `define var) ))
+                   `(def (var ,var) ,(parse-2 (cons `begin vars))))
+                  
+              ))
            (pattern-rule ;;define
             `(define ,(? `var) ,(? `exp))
             (lambda (var exp)  `(def (var ,var) ,(parse-2 exp))))
@@ -254,7 +289,9 @@
             `(set! ,(? `var) ,(? `exp))
             (lambda (var exp) `(set (var ,var) ,(parse-2 exp) )))
            (pattern-rule
-            `(begin) (lambda () (parse-2 ``())))
+            `(begin)
+            (lambda ()
+              (parse-2 `,(void))))
            (pattern-rule 
             `(begin  ,(? `expr))
             (lambda (expr) (parse-2 expr)))
@@ -282,35 +319,66 @@
                 (parse-2 (nested-if-cond new-exprs))
                 )))
            (pattern-rule ;;let
-            `(let () ,(? `exprs-lst))
-            (lambda (exprs-lst)
-              (parse-2 `((lambda () ,exprs-lst)))))
-          ; (pattern-rule
-          ;  `(let ((,(? `var)  ,(? `val))) . ,(? `rest))
-          ;  (lambda (var val)
-          ;    ))
+            `(let () ,(? 'expr) . ,(? 'exprs list?))
+            (lambda (expr exprs)
+              (if (not-empty? exprs)
+                  (parse-2 `((lambda () ,(cons `begin (cons expr exprs)))))
+                  (parse-2 `((lambda () ,@(cons expr exprs))))
+              )))
            
            (pattern-rule
             `(let ((,(? 'var var?) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
             (lambda (var val rest exprs)
-              (let ((vars (cons var (map car rest)))
-                    (vals (cons val (map cadr rest))))
-
-               (parse-2 `((lambda (,@vars) ,@exprs) ,@vals)))))
+              (if (check-let-params-diff (cons (cons var val) rest))
+                  (let ((vars (cons var (map car rest)))
+                        (vals (cons val (map cadr rest))))
+                    (parse-2 `((lambda (,@vars) ,@exprs) ,@vals)))
+                  (error 'parse
+		    (format "Invalid parameter list: ~s" (map car (cons (cons var val) rest)))))))
+           
 		(pattern-rule ;;let*
                 `(let* () ,(? 'expr) . ,(? 'exprs list?))
                 (lambda (expr exprs)
                   (if (not-empty? exprs)
-                      (parse-2 `(let () ,(cons expr exprs)))
+                      (parse-2 `(let () ,(cons `begin (cons expr exprs))))
                       (parse-2 `(let () ,expr)))
                   ))
 		(pattern-rule
                  `(let* ((,(? 'var) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
                  (lambda (var val rest exprs)
-                   (if (and (equal? (length rest) 0) (equal? (length exprs) 1))
-                        (parse-2 `(let ((,var ,val)) ,(car exprs)))
-                        (parse-2 `(let ((,var ,val)) (let* ,rest ,(car exprs)))))
+                   (if (and (equal? (length rest) 0) )
+                       (if (equal? (length exprs) 1)
+                          (parse-2 `(let ((,var ,val)) ,(car exprs)))
+                           (parse-2 `(let ((,var ,val)) ,(cons `begin exprs))))
+                        (parse-2 `(let ((,var ,val)) (let* ,rest ,@exprs))))
                    ))
+                (pattern-rule ;;letrec
+                 `(letrec () ,(? 'expr) . ,(? 'exprs list?))
+                 (lambda (expr exprs)
+                   (if (not-empty? exprs)
+                       (begin (display "yyy") (parse-2 `(let () ,(cons `begin `((lambda () ,(list `begin expr exprs))) ))))
+                      (begin (display "ooo") (parse-2 `(let () ((lambda () ,expr))))))
+                   ))
+                (pattern-rule
+                 `(letrec ((,(? 'var) ,(? `val)) . ,(? 'rest)) . ,(? 'exprs))
+                 (lambda (var val rest exprs)
+                   (display "exprs:") (display exprs) (display "\n")
+                   (let ((new-exprs (if (equal? (length exprs) 1) (car exprs) exprs)))
+                     (display "new-exprs:") (display new-exprs) (display "\n")
+                     (if (equal? `() rest)
+                         ;(parse-2 `((lambda () ,(cons expr exprs))
+                         (begin (display "ooops")
+                                ;(parse-2 `(let ((,var #f)) ,(list `begin `(set! ,var ,val) `(let () ,new-exprs))))
+                                (parse-2 `(let ((,var #f)) ,(list `begin `(set! ,var ,val) `((lambda () ,new-exprs))))))
+                         (let ((new-rest (map (lambda (pair) (list (car pair) #f)) rest))
+                               (new-sets (map (lambda (pair) (cons `set! pair)) rest)))
+                           (begin (display "new-rest: ") (display new-rest) (display "\n")
+                                  (display "new-sets: ") (display new-sets) (display "\n")
+                                  (display "something else:") (display (cons `(set! ,var #f) new-sets)) (display "\n")
+                                  (parse-2 `(let ,(cons (list var #f) new-rest) ,(append (cons `begin (cons `(set! ,var ,val) new-sets)) `((let () ,@exprs))))))))
+                             ;(parse-2 `(let ((,var #f)) ,(list `begin `(set! ,var #f) new-sets `(let () ,@exprs)))))
+                     )))
+                
            (pattern-rule ;;application
             `( ,(? `var not-is-reserved?) . ,(? `vars-lst))
             (lambda (var vars-lst) `(applic ,(parse-2 var) ,(map parse-2 vars-lst))))
@@ -325,4 +393,3 @@
 	   (lambda ()
 	     (error 'parse
 		    (format "I can't recognize this: ~s" e)))))))
-            
