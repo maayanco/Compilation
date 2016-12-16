@@ -117,22 +117,73 @@
 
 (define counter 0)
 
-(define apply-goe-rec
+(define apply-goe-rec3242342
   (lambda (exp original-exp)
     (set! counter (+ counter 1))
-    (display "\n\n") (display "current exp:") (display exp) (display "\n")
+    ;(display "\n\n") (display "current exp:") (display exp) (display "\n")
     (if (equal? counter 8)
         exp
     (let ((new-exp (go-over-exp exp original-exp)))
           (if (equal? new-exp exp)
               ;;if nothing changed in this iteration than that's it! we return new-exp
-              (begin (display "hello\n") new-exp)
+              (begin ;(display "hello\n")
+                     new-exp)
               ;;else clause- if the expression did change, we want to
-              (begin (display "changed! go again: ") (display " before: ") (display exp) (display " after: ") (display new-exp) (display " \n")
+              (begin ;(display "changed! go again: ") (display " before: ") (display exp) (display " after: ") (display new-exp) (display " \n")
                      (apply-goe-rec new-exp new-exp)))))))
+
+(define apply-goe-rec
+  (lambda (exp original-exp)
+    (set! counter (+ counter 1))
+    ;(display "\n\n") (display "current exp:") (display exp) (display "\n")
+
+    (let ((new-exp (go-over-exp exp original-exp)))
+          (if (equal? new-exp exp)
+              ;;if nothing changed in this iteration than that's it! we return new-exp
+              (begin ;(display "hello\n")
+                     new-exp)
+              ;;else clause- if the expression did change, we want to
+              (begin ;(display "changed! go again: ") (display " before: ") (display exp) (display " after: ") (display new-exp) (display " \n")
+                     (apply-goe-rec new-exp new-exp))))))
+
+ (define delete
+  (lambda (item saved-var)
+    (cond
+     ((equal? item (car saved-vars)) (cdr saved-vars))
+     (else (cons (car saved-vars) (delete item (cdr saved-vars)))))))
+
+;(define remove-element-from-saved-vars
+;  (lambda (elm-to-remove)
+;    (map (lambda (item) (if (equal? item item-to-find)) delete saved-vars)
+;    ))
+
+
+  
+(define remove-duplicates
+  (lambda (body)
+    ;; go over saved-vars and body
+    (let ((exp (cons saved-vars body)))
+       ;;for every element in saved-vars, go over exp and check:
+       (map
+        (lambda (element)
+          (let ((var (car element)))
+            (if (equal? (get-occurrences-num exp var) 2)
+                (begin ;(display "\nvar is:") (display var) (display "\n")
+                (set! saved-vars (delete var saved-vars))));;(instead of var should i send (car element?)
+            ))
+        saved-vars)
+    )))
+
+(define cse-2
+  (lambda (exp)
+    (set! saved-vars '())
+    (let ((res (apply-goe-rec exp exp)))
+      (remove-duplicates res)
+      (if (> (length saved-vars) 1)
+          `(let* ,saved-vars ,res)
+          `(let ,saved-vars ,res)))))
     
-    
-(define cse
+(define cse3
   (lambda (expr) 
     (map
      (lambda (item) (cond ((and (list? item) (not-empty? item) (is-smallest? item))
