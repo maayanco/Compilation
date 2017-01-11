@@ -1000,8 +1000,8 @@ done)))
   (lambda (a b)
     (cond ((or (equal? a `()) (equal? b `())) (append a b))
           ((and (list? a) (list? b)) (list a b))
-          ((and (list? a) (not (list? b))) (append a (list b)))
-          ((and (not (list? a)) (list? b)) (cons a b))
+          ((and (list? a) (not (list? b)))  (append a (list b)))
+          ((and (not (list? a)) (list? b))  (cons a b))
           ((and (not (list? a)) (not (list? b))) (list a b)))))
           
 (define test
@@ -1063,103 +1063,25 @@ done)))
       (- (length lst) (length (memv item lst)) )
     ))
 
-;; var-lst=`(a b c)
 (define update-vars-lst
   (lambda (vars-lst lambda-params current-major)
     (append vars-lst (map (lambda (item) (list item current-major (element-index item lambda-params))) lambda-params))
     ))
 
-(define make-cdr
-  (lambda (exp)
-    (let ((exp-cdr (cdr exp)))
-    (if (and (list? exp-cdr) (not (equal? exp-cdr `())) (equal? (length exp-cdr) 1))
-        (car exp-cdr)
-        exp-cdr))
-    ))
 
-;((fvar x) ((fvar x) () ))
-;((fvar x) (fvar x))
-(define annotate-lexical-comments
-  (lambda (expr vars-lst current-major)
-    (begin (display "*********\n")
-           (display "hello your exp is: ") (display expr) (display "\n")
-           (display "current major is:") (display current-major) (display "\n")
-           (display "current vars list is:") (display vars-lst) (display "\n********\n")
-    ; (begin (display "current expr is:") (display expr) (display "\n")
-           (cond ((and (list? expr) (not (equal? expr `())) (list? (car expr)) (equal? (cdr expr) `())) (begin (display "case 0") (list (annotate-lexical (car expr) vars-lst current-major))))
-                 ((not (list? expr)) (begin (display "case 1") expr))
-                 ((equal? expr `()) (begin (display "case 2") expr))
-                 ((and (list? expr) (equal? (length expr) 1) (not (list? (car expr)))) (begin (display "case 3") (car expr)))
-                 ((var-3? expr) (begin (display "case 4") (make-lexical-var expr vars-lst current-major)))
-                 ((lambda-3? expr) (begin (display "im inside lambda?\n")
-                                          (let ((new-vars (update-vars-lst vars-lst (get-lambda-params expr) (+ current-major 1))))
-                                            (begin (display "the new vars-list is: ") (display new-vars) (display "\n")
-                                          ; (stick-together
-                                         ; (get-header-3 expr)
-                                          (cons (car expr) (list (get-lambda-params expr)
-                                          (annotate-lexical
-                                           (get-body-3 expr)
-                                           new-vars
-                                           (+ current-major 1)))))))) ;;need to modify vars-lst and cdr expr!!
-                 ;; here we should go over cdr cdr or something like that.. for (lambda (a b) (something)) we need to go straight to (anotate-lexical (something)) and also add the params to the vars
-                 ((var-3? (car expr)) (begin (display "i'm inside var (case 5):")
-                                             
-                                              (let ((lex-var (make-lexical-var (car expr) vars-lst current-major)))
-                                                ;(display "lex-var:") (display lex-var) (display "\n")
-                                                (stick-together lex-var
-                                             ; (make-lexical-var (car expr) vars-lst current-major)
-                                              (annotate-lexical (make-cdr expr) vars-lst current-major)))))
-                 (else (begin (display "i'm in else (case 6):\n")
-                              (if (not (list? expr))
-                                  (begin (display "case 7.1\n") expr)
-                         (begin (display "case 7.2\n") (stick-together
-                                     (car expr)
-                                     (annotate-lexical (make-cdr expr) vars-lst current-major))))))
-                 ))
-    ;)
-    ))
 
 (define annotate-lexical
-  (lambda (expr vars-lst current-major)
-           (cond ((and (list? expr) (not (equal? expr `())) (list? (car expr)) (equal? (cdr expr) `())) (list (annotate-lexical (car expr) vars-lst current-major)))
-                 ((not (list? expr)) expr)
-                 ((equal? expr `())  expr)
-                 ((and (list? expr) (equal? (length expr) 1) (not (list? (car expr)))) (car expr))
-                 ((var-3? expr) (make-lexical-var expr vars-lst current-major))
-                 ((lambda-3? expr)
-                                          (let ((new-vars (update-vars-lst vars-lst (get-lambda-params expr) (+ current-major 1))))
-                                          (cons (car expr) (list (get-lambda-params expr)
-                                          (annotate-lexical
-                                           (get-body-3 expr)
-                                           new-vars
-                                           (+ current-major 1)))))) ;;need to modify vars-lst and cdr expr!!
-                 ;; here we should go over cdr cdr or something like that.. for (lambda (a b) (something)) we need to go straight to (anotate-lexical (something)) and also add the params to the vars
-                 ((var-3? (car expr)) (let ((lex-var (make-lexical-var (car expr) vars-lst current-major)))
-                                                (stick-together lex-var
-                                              (annotate-lexical (make-cdr expr) vars-lst current-major))))
-                 (else (if (not (list? expr))
-                                   expr
-                         (stick-together
-                                     (car expr)
-                                     (annotate-lexical (make-cdr expr) vars-lst current-major))))
-                 )
-    ;)
-    ))
-
-
-;(define annotate-lexical
-;  (lambda (expr vars-lst major)
-;    (cond ((lambda? (car expr)) `((car expr) (annotate-lexical (cdr expr) (+ major 1))))
-;          ((var? (car expr)) `((car expr) (annotate-lexical (cdr expr) (+ major 1))))
-;          (else 
- ;         ) 
-
-    
- ;   (cond
-;      ((lambda? expr) 
-;      (annotate-lexical (cdr expr) (add-to-list vars-lst (get-lambda-params expr)) (add1 major) minor)) ;; we add the parameters to the vars list, and 
-;    )))
-
+  (lambda (exp vars-lst current-major) 
+          (cond
+            ((or (not (list? exp)) (equal? exp '())) exp) 
+            ((lambda-3? exp) (let ((new-vars-lst (update-vars-lst vars-lst (get-lambda-params exp) (+ current-major 1))))
+                               (cons (car exp) (list (get-lambda-params exp) (annotate-lexical (get-body-3 exp) new-vars-lst (+ current-major 1))))))
+            ((equal? (car exp) 'var)
+             (make-lexical-var exp vars-lst current-major))
+            (else
+             (cons (annotate-lexical (car exp) vars-lst current-major) (annotate-lexical (cdr exp) vars-lst current-major)))
+            )))
+                             
 
 (define pe->lex-pe
   (lambda (expr)
@@ -1216,14 +1138,13 @@ done)))
     (and (not (equal? exp '())) (equal? (car exp) 'set))
     ))
 
-; Annotate(Define(Var(x), expr), tp?) = Define(Var(x), Annotate(expr, #f))
 
 ;; Annotating tail calls
 (define tc-annotating
   (lambda (expr tp?)
     (cond
       ((equal? expr '()) '())
-      ((or (const-3? expr) (var-p3? expr))  expr) ;;consts and vars can't be tail calls
+      ((or (const-3? expr) (var-p3? expr))  expr) 
       ((or-3? expr)  `(or ,(tc-annotating (get-or-first-element-3 expr) #f) ,(map (lambda (item) (tc-annotating item tp?)) (cdr expr))))
       ((seq-3? expr)   `(seq ( ,(tc-annotating (car expr) #f) ,(map (lambda (item) (tc-annotating item tp?)) (cdr expr)))))
       ((if-3? expr)  `( ,(car expr) ,(tc-annotating (cadr expr) #f) ,(tc-annotating (caddr expr) tp?) ,(tc-annotating (cadddr expr) tp?)))
