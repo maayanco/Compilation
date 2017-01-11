@@ -1,0 +1,25 @@
+(pe->lex-pe (parse '(lambda (a b) (lambda (c) (+ a b c))))) 
+my result:
+(lambda-simple
+(a b)
+(lambda-simple
+(c)
+(applic (fvar +) ((bvar a 0 0) ((bvar b 0 1) (pvar c 0))))))
+
+
+their result:
+(lambda-simple
+(a b)
+(lambda-simple
+(c)
+(applic (fvar +) ((bvar a 0 0) (bvar b 0 1) (pvar c 0)))))
+
+difference is in the last line, my result: ((bvar b 0 1) (pvar c 0)), theirs: (bvar b 0 1) (pvar c 0)
+
+
+
+mistakes!!!
+
+
++ i need to test on lambda-opt and lambda-var
+probably will be problems because of the way i don't treat them..

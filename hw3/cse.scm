@@ -106,16 +106,6 @@
     )))
 
 
-(define remove-dups
-  (lambda (body lst-of-pairs updated-lst)
-    (if (equal? lst-of-pairs `())
-        updated-lst
-        (let ((var (caar lst-of-pairs))
-              (val (cdar lst-of-pairs)))
-          (if (equal? (get-occurrences-num (cons body updated-lst) var) 2)
-              (remove-dups body (cdr lst-of-pairs) (replace (delete-once pair lst) var val))
-              (remove-dups body (cdr lst-of-pairs) updated-lst)
-              )))))
 
 (define get-pair-with-dup-2
   (lambda (params-lst body)
@@ -138,7 +128,7 @@
                        (remove-dups body lst-after-replace)))))))   
 
 
-(define cse-2
+(define cse
   (lambda (exp)
     (set! saved-vars '())
     (let ((res (apply-goe-rec exp exp)))
