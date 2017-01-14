@@ -1,4 +1,4 @@
-
+#lang racket
 (include "pc.scm")
 
 
@@ -965,15 +965,14 @@ done)))
          (lambda (e) (run e
 	   (lambda ()
 	     (error 'parse
-		    (format "I can't recognize this: ~s" e)))))))						
+		    (format "I can't recognize this: ~s" e)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;; ASSIGNMENT 3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; HELPER FUNCTIONS ;;;
 
 (define debug-mode-on #f)
 
-;;; AVI HELPER FUNCTIONS ;;;
 (define disp
   (lambda (exp)
     (display "\n")
@@ -1069,9 +1068,9 @@ done)))
 	(lambda (param) (list param))
 )
 
-;;END OF HELPER FUNCTIONS;;;
+;;;;;;;END OF HELPER FUNCTIONS;;;;;;;;;
 
-
+;;;;;;;; TASK 3 -START;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		
 (define get-first-tag-of-seq
 	(lambda (expr)
@@ -1157,11 +1156,9 @@ done)))
 
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 3 END ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;; 3 - END ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 4 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 4 - START ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (define is-lambda-simple?
@@ -1209,12 +1206,9 @@ done)))
 )
 
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 4 END ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 5 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 (define v-not-in-params
 	(lambda (v params)
@@ -1222,22 +1216,10 @@ done)))
                  (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1)
                  (display-debug "params is:" 1) (display-debug params 1) (display-debug "\n" 1)
                  (let ((new-params (if (not (list? params)) (list params) params)))
-				 (if (null? new-params) #t
-		(not (ormap (lambda (vi) (eq? v vi)) new-params)))))
+		(not (ormap (lambda (vi) (eq? v vi)) new-params))))
 	)
 )
 
-;; exp is the rest (meaning doesn't contain the tag
-;(define get-lambda-opt-body
-;  (lambda (rest)
-;    (caddr rest)
-;    ))
-
-;; exp is the rest (meaning doesn't contain the tag
-;(define get-lambda-opt-params
-;  (lambda (rest)
-;    (append (get-lambda-parameters rest) (list (cadr rest)))
-;    ))
 
 (define is-bound
 	(lambda (v body)
@@ -1283,7 +1265,9 @@ done)))
 				  ((eq? tag 'or) (begin (display-debug "case6\n" 1)
                                                         (ormap (lambda (expr) (is-bound v expr)) (get-or-sub-exprs rest))))
 				  
-				  ((eq? tag 'set) (begin (display-debug "case7\n" 1)
+				  ;;;;;((eq? tag 'set) `(,tag ,(is-bound v (get-set-var rest)) ,(is-bound v (get-set-val rest))))
+                                  ((eq? tag 'set) (begin (display-debug "case7\n" 1)
+                                                         ;;(or (is-bound (get-set-var rest))
                                                          (is-bound v (get-set-val rest))))
 				  
 				  (else (begin (display-debug "case else\n" 1) #f))
@@ -1312,7 +1296,7 @@ done)))
 									  (has-set v (get-if-second rest))))
 				  ((eq? tag 'or) (ormap (lambda (expr) (has-set v expr)) (get-or-sub-exprs rest)))			  
 				  
-				  ((eq? tag 'set) (has-set v (get-set-val rest)))
+				  ;;;;;((eq? tag 'set) `(,tag ,(has-set (get-set-var rest)) ,(has-set (get-set-val rest))))
 				  
 				  (else #f)
 				)))
@@ -1339,7 +1323,7 @@ done)))
 									  (has-get v (get-if-first rest)) 
 									  (has-get v (get-if-second rest))))
 				  ((eq? tag 'or) (ormap (lambda (expr) (has-get v expr)) (get-or-sub-exprs rest)))			  
-				  ((eq? tag 'set) (has-get v (get-set-val rest)))
+				  ((eq? tag 'set) (or (has-get v (get-set-var rest)) (has-get v (get-set-val rest))))
 				  (else #f)
 				))
 		))
@@ -1445,7 +1429,7 @@ done)))
 				 (rest (cdr body)))
 			(cond
                                   ((eq? tag 'set) (begin (display-debug "case0\n" 1)
-                                                         (if (eq? v (cadar rest)) `(box-set ,@rest) (box-set body))))  ;; Maybe 9box-set body?
+                                                         (if (eq? v (cadar rest)) `(box-set ,@rest) body)))
                                   
                                   ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest)))
                                                   (begin (display-debug "case1\n" 1)
@@ -1588,29 +1572,30 @@ done)))
 
                               ;; for a lambda-simple exp, call do-boxing with the parmeters and the body
                               ((eq? tag 'lambda-simple) (begin (display-debug "case5\n" 1)
-                                                               `(,tag ,(get-lambda-parameters rest) ,(do-boxing (list-reverse (get-lambda-parameters rest)) (get-lambda-body rest)))))
+                                                               `(,tag ,(get-lambda-parameters rest) ,(do-boxing (get-lambda-parameters rest) (get-lambda-body rest)))))
 
-                              ;; for a lambda-opt, call do-boxing with the parmeters and the body
+                              ;; for a lambda-opt call do-boxing with the parmeters and the body
                               ((eq? tag 'lambda-opt) (begin (display-debug "case6\n" 1)
-                                                            `(,tag ,(get-lambda-parameters rest) ,(get-lambda-opt-params rest) ,(do-boxing (list-reverse (get-lambda-parameters rest)) (get-lambda-opt-body rest)))))
+                                                            `(,tag ,(get-lambda-parameters rest) ,(get-lambda-opt-params rest) ,(do-boxing (get-lambda-parameters rest) (get-lambda-opt-body rest)))))
 
-                              ;;for a lambda-var, call do-boxing with the parmeters and the body
+                              ;;for a lambda-var, call box-set for the body..
+                              ;; why don't we need to box here???
                               ((eq? tag 'lambda-var) (begin (display-debug "case7\n" 1)
-                                                            `(,tag ,(get-lambda-parameters rest) ,(do-boxing (add-sograim (get-lambda-parameters rest)) (get-lambda-body rest)))))
+                                                            `(,tag ,(get-lambda-parameters rest) ,(box-set (get-lambda-body rest)))))
 				  
-				              ((or (eq? tag 'set) (eq? tag 'box-set)) `(,tag ,(get-set-var rest) ,(box-set (get-set-val rest))))
+				  ;;;;;((eq? tag 'set) `(,tag ,(box-set (get-set-var rest)) ,(box-set (get-set-val rest))))
 				  
-                              (else (begin (display-debug "case else\n" 1) expr))
+                              (else (begin (display-debug "case8\n" 1) expr))
 				)))
 		)
 	)	
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 5 END;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; TASK 5 - END ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;; TASK 6 -START ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-;;; Task 6 -START ;;;;;;
+;;; Assignment 3 -  Task 6 ;;;
 (define get-lambda-params
   (lambda (exp)
     (cond
@@ -1794,6 +1779,9 @@ done)))
     ))
 
 
+;;;;;;;;;;;;;;;; TASK 6 - END ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;; TASK 7 - START ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (define const-3?
@@ -1870,10 +1858,7 @@ done)))
          (get-last-elem (cdr exp)))))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 6 - END ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TASK 7 - START ;;;;;;;;;;;;;;;;;;;;;
+;; Annotating tail calls
 
 (define tc-annotating-debug
   (lambda (expr tp?)
@@ -1939,8 +1924,7 @@ done)))
     ))
 
 
-
-;;;;;;;;;;;;;;;;;;; TASK 7 -END ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; TASK 7 -END ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 (define run
