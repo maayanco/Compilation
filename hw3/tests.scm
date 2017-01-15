@@ -4,7 +4,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(load "compilerFixes.scm")
+
+(load "compiler.scm")
 (define test-func (lambda (x) 
 		    (annotate-tc
 		      (pe->lex-pe
@@ -18,7 +19,7 @@
 (define failed-tests-counter 0)
 
 ;;;; Configuration
-(define show-passed-tests #t)
+(define show-passed-tests #f)
 (define show-summary #t)
 
 (define show-difference

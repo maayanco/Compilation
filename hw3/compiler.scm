@@ -973,7 +973,7 @@ done)))
 
 (define debug-mode-on #f)
 
-;;; AVI HELPER FUNCTIONS ;;;
+;;;  HELPER FUNCTIONS ;;;
 (define disp
   (lambda (exp)
     (display "\n")
@@ -1069,9 +1069,10 @@ done)))
 	(lambda (param) (list param))
 )
 
+
 ;;END OF HELPER FUNCTIONS;;;
 
-
+;;;;;;;;;;;;;; TASK 3 - START ;;;;;;;;;;;;;;;;
 		
 (define get-first-tag-of-seq
 	(lambda (expr)
@@ -1218,32 +1219,26 @@ done)))
 
 (define v-not-in-params
 	(lambda (v params)
-          (begin (display-debug "in v-not-in-params\n" 1)
-                 (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1)
-                 (display-debug "params is:" 1) (display-debug params 1) (display-debug "\n" 1)
+          (begin (display-debug "in v-not-in-params\n" 0)
+                 (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "params is:" 0) (display-debug params 0) (display-debug "\n" 0)
                  (let ((new-params (if (not (list? params)) (list params) params)))
 				 (if (null? new-params) #t
 		(not (ormap (lambda (vi) (eq? v vi)) new-params)))))
 	)
 )
 
-;; exp is the rest (meaning doesn't contain the tag
-;(define get-lambda-opt-body
-;  (lambda (rest)
-;    (caddr rest)
-;    ))
+;(seq ((set (var inc-counter-by) (lambda-simple (n) (set (var counter) (applic (var +) ((var counter) (var n))))))
+;      (set (var inc-counter) (lambda-simple () (applic (var inc-counter-by) ((const 1)))))
+;      (set (var counter-value) (lambda-simple () (var counter)))
+;      ))
 
-;; exp is the rest (meaning doesn't contain the tag
-;(define get-lambda-opt-params
-;  (lambda (rest)
-;    (append (get-lambda-parameters rest) (list (cadr rest)))
-;    ))
 
 (define is-bound
 	(lambda (v body)
-          (begin (display-debug "hello im in is-bound \n" 1)
-          (display-debug "v: " 1) (display-debug v 1) (display-debug "\n" 1)
-          (display-debug "body: " 1) (display-debug body 1) (display-debug "\n" 1)
+          (begin (display-debug "hello im in is-bound \n" 0)
+          (display-debug "v: " 0) (display-debug v 0) (display-debug "\n" 0)
+          (display-debug "body: " 0) (display-debug body 0) (display-debug "\n" 0)
 		(if (null? body) body
 			(let
 				((tag (car body))
@@ -1251,70 +1246,105 @@ done)))
                           
 			(cond
                                   ((eq? tag 'lambda-simple)
-                                   (begin (display-debug "case0\n" 1)
-                                          (if (v-not-in-params v (get-lambda-parameters rest)) (has-get v (get-lambda-body rest)) #f)))
+                                   (begin (display-debug "case0\n" 0)
+                                          (if (v-not-in-params v (get-lambda-parameters rest)) (has-get-bound v (get-lambda-body rest)) #f)))
 
                                   ((eq? tag 'lambda-opt)
-                                   (begin (display-debug "case0.1\n" 1)
-                                          (if (v-not-in-params v (append (get-lambda-parameters rest) (list (cadr rest)))) (has-get v (caddr rest)) #f)))
+                                   (begin (display-debug "case0.1\n" 0)
+                                          (if (v-not-in-params v (append (get-lambda-parameters rest) (list (cadr rest)))) (has-get-bound v (caddr rest)) #f)))
                                   
                                   ;;what i need to do next! row above or below - why doesn't return #t????
                                   
-                                  ((eq? tag 'lambda-var) (begin (display-debug "case1\n" 1)
-                                                                (if (v-not-in-params v (list (get-lambda-parameters rest))) (has-get v (get-lambda-body rest)) #f)))
+                                  ((eq? tag 'lambda-var) (begin (display-debug "case1\n" 0)
+                                                                (if (v-not-in-params v (list (get-lambda-parameters rest))) (has-get-bound v (get-lambda-body rest)) #f)))
                                                                 ;(is-bound v (get-lambda-body rest))))
                                   
-				  ((eq? tag 'seq) (begin (display-debug "case2\n" 1)
+				  ((eq? tag 'seq) (begin (display-debug "case2\n" 0)
                                                          (ormap (lambda (expr) (is-bound v expr)) (get-tatey-expr rest))))
                                   
-				  ((eq? tag 'applic) (begin (display-debug "case3\n" 1)
+				  ((eq? tag 'applic) (begin (display-debug "case3\n" 0)
                                                             (or (is-bound v (get-applic-operator rest))
                                                                 (ormap (lambda (expr) (is-bound v expr)) (get-applic-operands rest)))))
                                   
-				  ((eq? tag 'def) (begin (display-debug "case4\n" 1)
+				  ((eq? tag 'def) (begin (display-debug "case4\n" 0)
                                                          (or (is-bound v (get-define-var rest)) 
                                                              (is-bound v (get-define-val rest)))))
                                   
-				  ((eq? tag 'if3) (begin (display-debug "case5\n" 1)
+				  ((eq? tag 'if3) (begin (display-debug "case5\n" 0)
                                                          (or (is-bound v (get-if-condition rest)) 
                                                              (is-bound v (get-if-first rest)) 
                                                              (is-bound v (get-if-second rest)))))
                                   
-				  ((eq? tag 'or) (begin (display-debug "case6\n" 1)
+				  ((eq? tag 'or) (begin (display-debug "case6\n" 0)
                                                         (ormap (lambda (expr) (is-bound v expr)) (get-or-sub-exprs rest))))
 				  
-				  ((eq? tag 'set) (begin (display-debug "case7\n" 1)
+				  ((eq? tag 'set) (begin (display-debug "case7\n" 0)
                                                          (is-bound v (get-set-val rest))))
-				  
-				  (else (begin (display-debug "case else\n" 1) #f))
+
+                                  ((eq? tag 'box-set) (begin (display-debug "case8\n" 0)
+                                                             (is-bound v (get-set-val rest))))
+
+                                  ;((eq? tag 'var) (begin (display-debug "case8\n" 1)
+                                  ;                  (if (and (not (equal? rest '())) (equal? (car rest) v)) #t #f)
+                                  ;                     ))
+                                  
+				  (else (begin (display-debug "case else\n" 0) #f))
 				))
 		)
 	))
 )
 
+
+
+
 (define has-set
 	(lambda (v body)
-          (begin (display-debug "in has-set\n" 1) (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1) (display-debug "body is:" 1) (display-debug body 1) (display-debug "\n" 1)
+          (begin (display-debug "in has-set\n" 0) (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
 		(if (null? body) body
 			(let
 				((tag (car body))
 				 (rest (cdr body)))
-			(cond ((eq? tag 'set) (eq? v (cadar rest)))
-				  ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest))) (has-set v (get-lambda-body rest)))
-				  ((eq? tag 'lambda-opt) (has-set v (get-lambda-opt-body rest)))
-				  ((eq? tag 'seq) (ormap (lambda (expr) (has-set v expr)) (get-tatey-expr rest)))
-				  ((eq? tag 'applic) (or (has-set v (get-applic-operator rest))
-											(ormap (lambda (expr) (has-set v expr)) (get-applic-operands rest))))
-				  ((eq? tag 'def) (or (has-set v (get-define-var rest)) 
-									  (has-set v (get-define-val rest))))
-				  ((eq? tag 'if3) (or (has-set v (get-if-condition rest)) 
-									  (has-set  v (get-if-first rest)) 
-									  (has-set v (get-if-second rest))))
-				  ((eq? tag 'or) (ormap (lambda (expr) (has-set v expr)) (get-or-sub-exprs rest)))			  
+			(cond ((eq? tag 'set) (begin (display-debug "case0\n" 0)
+                                                     (if (eq? v (cadar rest))
+                                                         #t
+                                                         (has-set v (get-set-val rest))
+                                                     )))
+                              
+                              ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest)))
+                                   (begin (display-debug "case1\n" 0)
+                                   (has-set v (get-lambda-body rest))))
+                                  
+				  ((eq? tag 'lambda-opt) (begin (display-debug "case2\n" 0)
+                                                                (has-set v (get-lambda-opt-body rest))))
+                                  
+				  ((eq? tag 'seq) (begin (display-debug "case3\n" 0)
+                                                         (ormap (lambda (expr) (has-set v expr)) (get-tatey-expr rest))))
+                                                  
+				  ((eq? tag 'applic) (begin (display-debug "case4\n" 0)
+                                                            (or (has-set v (get-applic-operator rest))
+                                                                (ormap (lambda (expr) (has-set v expr)) (get-applic-operands rest)))))
+                                  
+				  ((eq? tag 'def) (begin (display-debug "case5\n" 0)
+                                                         (or (has-set v (get-define-var rest)) 
+                                                             (has-set v (get-define-val rest)))))
+                          
+				  ((eq? tag 'if3) (begin (display-debug "case6\n" 0)
+                                                         (or (has-set v (get-if-condition rest)) 
+                                                             (has-set  v (get-if-first rest)) 
+                                                             (has-set v (get-if-second rest)))))
+                          
+				  ((eq? tag 'or) (begin (display-debug "case7\n" 0)
+                                                        (ormap (lambda (expr) (has-set v expr)) (get-or-sub-exprs rest))))
 				  
-				  ((eq? tag 'set) (has-set v (get-set-val rest)))
+				  ((eq? tag 'set) (begin (display-debug "case8\n" 0)
+                                                         (has-set v (get-set-val rest))))
+                          
+                                  ((eq? tag 'box-set) (begin (display-debug "case9\n" 0)
+                                                             (has-set v (get-set-val rest))))
+                          
 				  
-				  (else #f)
+				  (else (begin (display-debug "case else\n" 0) #f))
 				)))
 		)
 	)
@@ -1322,7 +1352,8 @@ done)))
 
 (define has-get
 	(lambda (v body)
-          (begin (display-debug "in has-get\n" 1) (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1) (display-debug "body is:" 1) (display-debug body 1) (display-debug "\n" 1)
+          (begin (display-debug "in has-get\n" 0) (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
 		(if (null? body) body
 			(let
 				((tag (car body))
@@ -1340,6 +1371,35 @@ done)))
 									  (has-get v (get-if-second rest))))
 				  ((eq? tag 'or) (ormap (lambda (expr) (has-get v expr)) (get-or-sub-exprs rest)))			  
 				  ((eq? tag 'set) (has-get v (get-set-val rest)))
+                                  ((eq? tag 'box-set) (has-get v (get-set-val rest)))
+				  (else #f)
+				))
+		))
+	)
+)
+
+(define has-get-bound
+	(lambda (v body)
+          (begin (display-debug "in has-get\n" 0) (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
+		(if (null? body) body
+			(let
+				((tag (car body))
+				 (rest (cdr body)))
+			(cond ((eq? tag 'var) (eq? v (car rest)))
+			      ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest))) (has-get v (get-lambda-body rest)))
+				  ((eq? tag 'lambda-opt) (has-get v (get-lambda-opt-body rest)))
+				  ((eq? tag 'seq) (ormap (lambda (expr) (has-get v expr)) (get-tatey-expr rest)))
+				  ((eq? tag 'applic) (or (has-get v (get-applic-operator rest))
+											(ormap (lambda (expr) (has-get v expr)) (get-applic-operands rest))))
+				  ((eq? tag 'def) (or (has-get v (get-define-var rest)) 
+									  (has-get v (get-define-val rest))))
+				  ((eq? tag 'if3) (or (has-get v (get-if-condition rest)) 
+									  (has-get v (get-if-first rest)) 
+									  (has-get v (get-if-second rest))))
+				  ((eq? tag 'or) (ormap (lambda (expr) (has-get v expr)) (get-or-sub-exprs rest)))			  
+				  ((eq? tag 'set) (or (has-get v (get-set-var rest)) (has-get v (get-set-val rest))))
+                                  ((eq? tag 'box-set) (or (has-get v (get-set-var rest)) (has-get v (get-set-val rest))))
 				  (else #f)
 				))
 		))
@@ -1348,14 +1408,17 @@ done)))
 
 (define check-box-criteria 
 	(lambda (parameter body)
-          (begin (display-debug "in check-box-criteria\n" 1)
+          (begin (display-debug "in check-box-criteria\n" 0)
+                 (display-debug "parameter is:" 0) (display-debug parameter 0) (display-debug "\n" 0)
+                 (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
+                 
 	;(disp 3)
           (let ((first-check (is-bound parameter body))
                 (second-check (has-set parameter body))
                 (third-check (has-get parameter body)))
-            (begin  (display-debug "first-check is:" 1) (display-debug first-check 1) (display-debug "\n" 1)
-                    (display-debug "second-check is:" 1) (display-debug second-check 1) (display-debug "\n" 1)
-                    (display-debug "third-check is:" 1) (display-debug third-check 1) (display-debug "\n" 1)
+            (begin  (display-debug "first-check is:" 0) (display-debug first-check 0) (display-debug "\n" 0)
+                    (display-debug "second-check is:" 0) (display-debug second-check 0) (display-debug "\n" 0)
+                    (display-debug "third-check is:" 0) (display-debug third-check 0) (display-debug "\n" 0)
                     
                     (and (is-bound parameter body) (has-set parameter body) (has-get parameter body))))
 	))
@@ -1364,7 +1427,8 @@ done)))
  
 (define add-first-set
 	(lambda (v body)
-          (begin (display-debug "in add-first-set\n" 1)
+          (begin (display-debug "!!!! in add-first-set\n" 0) (display-debug "v:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "body:" 0) (display-debug body 0) (display-debug "\n" 0)
 		(if (eq? 'seq (car body))
 			`(seq ((set (var ,v) (box (var ,v))) ,@(get-tatey-expr (cdr body))))
 			`(seq ((set (var ,v) (box (var ,v))) ,(box-set body)))
@@ -1376,59 +1440,59 @@ done)))
 ;; 
 (define replace-get
 	(lambda (v body)
-         (begin (display-debug "hello im in replace-get \n" 1)
-          (display-debug "v: " 1) (display-debug v 1) (display-debug "\n" 1)
-          (display-debug "body: " 1) (display-debug body 1) (display-debug "\n" 1)
+         (begin (display-debug "hello im in replace-get \n" 0)
+          (display-debug "v: " 0) (display-debug v 0) (display-debug "\n" 0)
+          (display-debug "body: " 0) (display-debug body 0) (display-debug "\n" 0)
 		(if (null? body) body
 			(let
 				((tag (car body))
 				 (rest (cdr body)))
-                          (begin (display-debug "tag:" 1) (display-debug tag 1) (display-debug "\n" 1)
-                          (display-debug "rest:" 1) (display-debug rest 1) (display-debug "\n" 1)
+                          (begin (display-debug "tag:" 0) (display-debug tag 0) (display-debug "\n" 0)
+                          (display-debug "rest:" 0) (display-debug rest 0) (display-debug "\n" 0)
                           
 			(cond
                                   ;;  body == (var x) ==> tag='var , rest= '(x), so if (car rest)==v then we replace this with a box-get record.. (box-get (var 
-                                  ((eq? tag 'var) (begin (display-debug "case0\n" 1)
+                                  ((eq? tag 'var) (begin (display-debug "case0\n" 0)
                                                      (if (eq? v (car rest)) `(box-get ,body) body)))
                                
                                   ((and (eq? tag 'lambda-simple) (v-not-in-params v (get-lambda-parameters rest)))
-                                                 (begin (display-debug "case1.1\n" 1)
+                                                 (begin (display-debug "case1.1\n" 0)
 						`(,tag ,(get-lambda-parameters rest) ,(replace-get v (get-lambda-body rest)))))
 
                                   ((and (eq? tag 'lambda-var) (v-not-in-params v (list (get-lambda-parameters rest))))
-                                                 (begin (display-debug "case1.2\n" 1)
+                                                 (begin (display-debug "case1.2\n" 0)
 						`(,tag ,(get-lambda-parameters rest) ,(replace-get v (get-lambda-body rest)))))
                                   
                                  ; ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest)))
                                  ;                (begin (display-debug "case1\n" 1)
 				;		`(,tag ,(get-lambda-parameters rest) ,(replace-get v (get-lambda-body rest)))))
                                   
-				  ((eq? tag 'lambda-opt) (begin (display-debug "case2\n" 1)
+				  ((eq? tag 'lambda-opt) (begin (display-debug "case2\n" 0)
                                                                 `(,tag ,(get-lambda-parameters rest) ,(get-lambda-opt-params rest) ,(replace-get v (get-lambda-opt-body rest)))))
                                   
-				  ((eq? tag 'seq) (begin (display-debug "case3\n" 1)
+				  ((eq? tag 'seq) (begin (display-debug "case3\n" 0)
                                                          `(,tag ,(map (lambda (expr) (replace-get v expr)) (get-tatey-expr rest)))))
                                   
-				  ((eq? tag 'applic) (begin (display-debug "case4\n" 1)
+				  ((eq? tag 'applic) (begin (display-debug "case4\n" 0)
                                                             `(,tag ,(replace-get v (get-applic-operator rest)) ,(map (lambda (expr) (replace-get v expr)) (get-applic-operands rest)))))
                                   
-				  ((eq? tag 'def) (begin (display-debug "case5\n" 1)
+				  ((eq? tag 'def) (begin (display-debug "case5\n" 0)
                                                          `(,tag ,(replace-get v (get-define-var rest)) ,(replace-get v (get-define-val rest)))))
                                   
-				  ((eq? tag 'if3) (begin (display-debug "case6\n" 1)
+				  ((eq? tag 'if3) (begin (display-debug "case6\n" 0)
                                                          `(,tag ,(replace-get v (get-if-condition rest)) ,(replace-get v (get-if-first rest)) ,(replace-get v (get-if-second rest)))))
                                   
-				  ((eq? tag 'or) (begin (display-debug "case7\n" 1)
+				  ((eq? tag 'or) (begin (display-debug "case7\n" 0)
                                                         `(,tag ,(map (lambda (expr) (replace-get v expr)) (get-or-sub-exprs rest)))))
                                   
-				  ((eq? tag 'set) (begin (display-debug "case8\n" 1)
+				  ((eq? tag 'set) (begin (display-debug "case8\n" 0)
                                                          `(,tag ,(replace-get v (get-set-var rest)) ,(replace-get v (get-set-val rest)))))
                                   
                                   ;; body == (set a b) => tag=set, rest=(a b)
-                                  ((eq? tag 'box-set) (begin (display-debug "case9\n" 1)
+                                  ((eq? tag 'box-set) (begin (display-debug "case9\n" 0)
                                                              `(,tag ,(get-set-var rest) ,(replace-get v (get-set-val rest)))))
                                   
-				  (else (begin (display-debug "case10\n" 1) body))
+				  (else (begin (display-debug "case10\n" 0) body))
 				)))
 		)
 	))
@@ -1444,8 +1508,20 @@ done)))
 				((tag (car body))
 				 (rest (cdr body)))
 			(cond
+                                 ; ((eq? tag 'set) (begin (display-debug "case0\n" 1)
+                                 ;                        (if (eq? v (cadar rest)) `(box-set ,@rest) (box-set body))))  ;; Maybe 9box-set body?
                                   ((eq? tag 'set) (begin (display-debug "case0\n" 1)
-                                                         (if (eq? v (cadar rest)) `(box-set ,@rest) (box-set body))))  ;; Maybe 9box-set body?
+                                                         (if (eq? v (cadar rest))
+                                                             `(box-set ,@rest)
+                                                             `(set ,(get-set-var rest) ,(replace-set v (get-set-val rest)))
+                                                             ;(box-set body)
+                                                             )))
+
+                                  ((eq? tag 'box-set) (begin (display-debug "case0\n" 1)
+                                                             `(box-set ,(get-set-var rest) ,(replace-set v (get-set-val rest))
+                                                             ;(box-set body)
+                                                             )))
+
                                   
                                   ((and (or (eq? tag 'lambda-simple) (eq? tag 'lambda-var)) (v-not-in-params v (get-lambda-parameters rest)))
                                                   (begin (display-debug "case1\n" 1)
@@ -1481,77 +1557,49 @@ done)))
 	)
 )
 
-;; receives a param and body
-;; first calls replace set with v and body
-;; so we have a new body with all occurences of (set v _) replaced with (box-set v _)
-;; then we call replace-get v with this new body..
-;; so we replace all occurences of reading!! v with (box-get v)
-;; then we call box-set on this new body we created..
-;; what is add-first-set
+
 (define let-us-box
 	(lambda (v body)
-          (begin (display-debug "inside let-us-box\n" 1)
-                 (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1)
-                 (display-debug "body is:" 1) (display-debug body 1) (display-debug "\n" 1)
+          (begin (display-debug "inside let-us-box\n" 0)
+                 (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                 (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
                  ;(disp 3)
                  (box-set (add-first-set v (box-set (replace-get v (box-set (replace-set v body))))))
                  ))
   )
 
 
-;; here we get params of a lambda and it's body
-;; v is the first of the params, if (check-box-criteria v body) is true then we call (do-boxing (rest params) and also do (let-us-box body)
-;; else we call set-box on the body..
-;; don't understand why we box only the first parameter..
 
-;; else, we just call 
-(define do-boxing2
-	(lambda (params body)
-          (begin
-            ; (display "do-boxing!!\n")
-          ;(display "params:") (display params) (display "\n")
-         ; (display "body:") (display body) (display "\n")
-	;(disp 2)
-		(cond ((null? params) body)
-			  (else (let ((v (car params)))
-                                  (begin (display "hello, v is:") (display v) (display "\n")
-						(if (check-box-criteria v body)
-							(do-boxing (cdr params) (let-us-box v body))
-                                                        ;;(do-boxing (cdr params) body)
-						(box-set body)
 
-                                                        ))
-					)
-			  )
-		)
-	))
-)
-
-;; maayan version
 (define do-boxing
   (lambda (params body)
     (begin
-      (display-debug "inside do-boxing\n" 1)
-          (display-debug "params:" 1) (display-debug params 1) (display-debug "\n" 1)
-          (display-debug "body:" 1) (display-debug body 1) (display-debug "\n" 1)
+      (display-debug "inside do-boxing\n" 0)
+          (display-debug "params:" 0) (display-debug params 0) (display-debug "\n" 0)
+          (display-debug "body:" 0) (display-debug body 0) (display-debug "\n" 0)
           (cond ((null? params) (box-set body)) ;;personally i think this should be (box-set body) and not body but the tests prefer body.. don't know why
                 (else
                  (let ((v (car params)))
                    (begin
-                     (display-debug "v is:" 1) (display-debug v 1) (display-debug "\n" 1)
+                     (display-debug "inside do-boxing\n" 0)
+                     (display-debug "v is:" 0) (display-debug v 0) (display-debug "\n" 0)
+                     (display-debug "body is:" 0) (display-debug body 0) (display-debug "\n" 0)
                           (if (check-box-criteria v body)
-                              (begin (display-debug "according to check-box-criteria should box param " 1) (display-debug v 1) (display-debug "\n" 1) (do-boxing (cdr params) (let-us-box v body)))
-                              (begin (display-debug "according to check-box-criteria shouldn't box param "1) (display-debug v 1) (display-debug "\n" 1) (do-boxing (cdr params) body))
+                              (begin (display-debug "according to check-box-criteria should box param " 0) (display-debug v 0) (display-debug "\n" 0)
+                                     (do-boxing (cdr params) (let-us-box v body)))
+                              (begin (display-debug "according to check-box-criteria shouldn't box param "0) (display-debug v 0) (display-debug "\n" 0)
+                                     (do-boxing (cdr params) body))
                               ))))))))
-          
+
+
 
 ;; so if the expr is null we just return it..
 ;; we then calc (car expr) as "tag" and "rest" as (cdr expr)
 ;; 
 (define box-set 
 	(lambda (expr)
-          (begin (display-debug "inside box-set\n" 1)
-          (display-debug "current expr:" 1) (display-debug expr 1) (display-debug "\n" 1)
+          (begin (display-debug "inside box-set\n" 0)
+          (display-debug "current expr:" 0) (display-debug expr 0) (display-debug "\n" 0)
 	;(disp 1)
 		(if (null? expr) expr
 			(let
@@ -1560,47 +1608,49 @@ done)))
 
 			(cond
                               ;; if this is a seq then go over the 'rest' and for every exp perform box-set
-                              ((eq? tag 'seq) (begin (display-debug "case 0" 1)
+                              ((eq? tag 'seq) (begin (display-debug "case 0" 0)
                                                      `(,tag ,(map (lambda (tat-expr) (box-set tat-expr)) (get-tatey-expr rest))))) 
                               
                               ;; if this is an applic record, do a box set for the op
                               ;; then do a box set of the operands
                               ;; example, for (+ 1 2) (applic (var +) ((const 1) (const 2))) first do (box-set (var +)) then do (box-set ((const 1) (const 2)))
                               
-                              ((eq? tag 'applic) (begin (display-debug "case1\n" 1)
+                              ((eq? tag 'applic) (begin (display-debug "case1\n" 0)
+
                                                         `(,tag ,(box-set (get-applic-operator rest))
                                                         ,(map (lambda (operand) (box-set operand)) (get-applic-operands rest)))))
+
                               
                               ;;for a define record, do box-set on the var then do a box-set on the val
-                              ((eq? tag 'def) (begin (display-debug "case2\n" 1)
+                              ((eq? tag 'def) (begin (display-debug "case2\n" 0)
                                                      `(,tag ,(box-set (get-define-var rest)) 
                                                             ,(box-set (get-define-val rest)))))
                               
                               ;; for an if record, do a box-set on the condition, then on the then then and the else
-                              ((eq? tag 'if3) (begin (display-debug "case3\n" 1)
+                              ((eq? tag 'if3) (begin (display-debug "case3\n" 0)
                                                      `(,tag ,(box-set (get-if-condition rest)) 
                                                             ,(box-set (get-if-first rest)) 
                                                             ,(box-set (get-if-second rest)))))
                               
                               ;; for an or record, do a box-set on every statement seperatly
-                              ((eq? tag 'or) (begin (display-debug "case4\n" 1)
+                              ((eq? tag 'or) (begin (display-debug "case4\n" 0)
                                                     `(,tag ,(map (lambda (tat-expr) (box-set tat-expr)) (get-or-sub-exprs rest)))))
 
                               ;; for a lambda-simple exp, call do-boxing with the parmeters and the body
-                              ((eq? tag 'lambda-simple) (begin (display-debug "case5\n" 1)
+                              ((eq? tag 'lambda-simple) (begin (display-debug "case5\n" 0)
                                                                `(,tag ,(get-lambda-parameters rest) ,(do-boxing (list-reverse (get-lambda-parameters rest)) (get-lambda-body rest)))))
 
                               ;; for a lambda-opt, call do-boxing with the parmeters and the body
-                              ((eq? tag 'lambda-opt) (begin (display-debug "case6\n" 1)
+                              ((eq? tag 'lambda-opt) (begin (display-debug "case6\n" 0)
                                                             `(,tag ,(get-lambda-parameters rest) ,(get-lambda-opt-params rest) ,(do-boxing (list-reverse (get-lambda-parameters rest)) (get-lambda-opt-body rest)))))
 
                               ;;for a lambda-var, call do-boxing with the parmeters and the body
-                              ((eq? tag 'lambda-var) (begin (display-debug "case7\n" 1)
+                              ((eq? tag 'lambda-var) (begin (display-debug "case7\n" 0)
                                                             `(,tag ,(get-lambda-parameters rest) ,(do-boxing (add-sograim (get-lambda-parameters rest)) (get-lambda-body rest)))))
 				  
 				              ((or (eq? tag 'set) (eq? tag 'box-set)) `(,tag ,(get-set-var rest) ,(box-set (get-set-val rest))))
 				  
-                              (else (begin (display-debug "case else\n" 1) expr))
+                              (else (begin (display-debug "case else\n" 0) expr))
 				)))
 		)
 	)	
