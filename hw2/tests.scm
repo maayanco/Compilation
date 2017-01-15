@@ -276,7 +276,11 @@
 (define negativeTests
   (list
     '(if)
-    '(cond)  
+    '(cond)
+    '(let)
+    '(lambda)
+    '(letrec)
+    '(let*)
     '(lambda (a b c a) (f x))
     '(let ((AbC 5) (Sym123 "abc") (AbC 12)) (if (= AbC 12) #t (begin (display "WOW") #f)))
     '(letrec ((AbC (lambda (x) (AbC x))) (Sym123 "abc") (AbC 12)) (if (= AbC 12) #t (begin (display "WOW") #f)))
