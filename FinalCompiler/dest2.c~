@@ -1,0 +1,37 @@
+/* cisc.c
+
+#include <stdio.h>
+#include <stdlib.h>
+
+/* change to 0 for no debug info to be printed: */
+#define DO_SHOW 1
+
+#include "cisc.h"
+
+int main()
+{
+  START_MACHINE;
+
+  JUMP(CONTINUE);
+
+#include "char.lib"
+#include "io.lib"
+#include "math.lib"
+#include "string.lib"
+#include "system.lib"
+
+ CONTINUE:1
+CMP(R0, IMM(0));
+JUMP_EQ(Lif3else1);
+2
+JUMP(Lif3exit1);
+Lif3else1:
+3
+Lif3exit1:
+CMP (R0, IMM(0));
+JUMP_EQ(Lend1);
+SHOW ("STR[0] = ", R0);
+Lend1:
+STOP_MACHINE;
+return 0;
+}
