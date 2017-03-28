@@ -1,0 +1,170 @@
+
+
+#include <stdio.h>
+#include <stdlib.h>
+
+/* change to 0 for no debug info to be printed: */
+#define DO_SHOW 1
+
+#define SOB_VOID  1
+#define SOB_NIL   2
+#define SOB_FALSE 3
+#define SOB_TRUE  5
+
+
+#include "cisc.h"
+#include "debug_macros.h"
+
+
+
+int main()
+{
+  START_MACHINE;
+
+  JUMP(CONTINUE);
+  
+#include "char.lib"
+#include "io.lib"
+#include "math.lib"
+#include "string.lib"
+#include "system.lib"
+#include "scheme.lib"
+#include "primitives.lib"
+
+
+CONTINUE:
+	/*CONSTANT TABLE */
+	ADD(IND(0), IMM(165));
+
+	MOV(IND(1),IMM(T_VOID));
+	MOV(IND(2),IMM(T_NIL));
+	MOV(IND(3),IMM(T_BOOL));
+	MOV(IND(4),IMM(0));
+	MOV(IND(5),IMM(T_BOOL));
+	MOV(IND(6),IMM(1));
+	MOV(IND(7),IMM(T_INTEGER));
+	MOV(IND(8),IMM(2));
+	MOV(IND(9),IMM(T_INTEGER));
+	MOV(IND(10),IMM(1));
+	MOV(IND(11),IMM(T_STRING));
+	MOV(IND(12),IMM(1));
+	MOV(IND(13),IMM(97));
+	MOV(IND(14),IMM(T_SYMBOL));
+	MOV(IND(15),IMM(11));
+
+	/*FREE VARS TABLE*/
+	CALL(LmakeCarClos);
+	CALL(LmakeCdrClos);
+	CALL(LmakeConsClos);
+	CALL(LmakeEqualClos);
+	CALL(LmakeSetCar);
+	CALL(LmakeSetCdr);
+	CALL(LmakeIsPairClos);
+	CALL(LmakeIsProcedureClos);
+	CALL(LmakeZeroClos);
+	CALL(LmakeVectorClos);
+	CALL(LmakeVectorLengthClos);
+	CALL(LmakeVectorRefClos);
+	CALL(LmakeVectorSetClos);
+	CALL(LmakeIsVectorClos);
+	CALL(LmakeGcd);
+	CALL(LmakeCompareStrings);
+	CALL(LmakeStringToSymbol);
+	CALL(LmakeMakeString);
+	CALL(LmakeSymbolToStringBody);
+	CALL(LmakeIsString);
+	CALL(LmakeIsSymbol);
+	CALL(LmakeStringLength);
+	CALL(LmakeStringRefBody);
+	CALL(LmakeStringSetBody);
+	CALL(LmakeIsNullBody);
+	CALL(LmakeIsNumberBody);
+	CALL(LmakePlus);
+	CALL(LmakePushRegisters);
+	CALL(LmakePopRegisters);
+	CALL(LmakeMultBody);
+	CALL(LmakeDivBody);
+	CALL(LmakeSmallerThan);
+	CALL(LmakeLargerThanBody);
+	CALL(LmakeEqualThanBody);
+	CALL(LmakeMinus);
+	CALL(LmakeApply);
+	CALL(LmakeCharToIntegerBody);
+	CALL(LmakeIsCharBody);
+	CALL(LmakeIsBooleanBody);
+	CALL(LmakeIsRationalBody);
+	CALL(LmakeIsIntegerBody);
+	CALL(LmakeNumeratorBody);
+	CALL(LmakeDenominatorBody);
+	CALL(LmakeIsEqBody);
+	CALL(LmakeRemainderBody);
+	CALL(LmakeIntegerToCharBody);
+	CALL(LmakeNotBody);
+	CALL(LmakeMakeVectorBody);
+
+	/*SYMBOL TABLE */
+	MOV(IND(66),11);
+	MOV(IND(67),2);
+
+MOV (R0,IMM(14));
+
+	PUSH(R0);
+	PUSH(IMM(1));
+	MOV(R0, IND(42));
+	CMP(INDD(R0,0), IMM(T_CLOSURE));
+	JUMP_NE(L_error_cannot_apply_non_clos);
+	PUSH(INDD(R0,1));
+	CALLA(INDD(R0,2));
+	DROP(1);
+	POP(R1);
+	DROP(R1);
+
+	CMP(INDD(R0,1), IMM(SOB_FALSE));
+	JUMP_EQ(L_if_else_1);
+MOV (R0,IMM(9));
+
+	JUMP(L_if_exit_1);
+L_if_else_1:
+MOV (R0,IMM(7));
+
+L_if_exit_1:
+	CMP(R0, IMM(SOB_VOID));
+	JUMP_EQ(L_R0_is_void_1);
+	PUSH(R0);
+	CALL(WRITE_SOB);
+	DROP(1);
+	PUSH(IMM(10));
+	CALL(PUTCHAR);
+	DROP(1);
+L_R0_is_void_1:
+	JUMP(L_end_program);
+		JUMP(L_end_program);
+L_error_cannot_apply_non_clos:
+	printf("Error: cannot_apply_non_clos");
+	JUMP(L_end_program);
+L_error_lambda_args_count:
+	printf("Error: Error: lambda_args_count");
+	JUMP(L_end_program);
+L_error_incorrect_type:
+	printf("Error: incorrect type");
+	JUMP(L_end_program);
+L_error_not_valid_index:
+	printf("Error: not a valid index");
+	JUMP(L_end_program);
+L_error_second_arg_is_zero:
+	printf("Error: second argument is zero");
+	JUMP(L_end_program);
+L_error_incorrect_num_of_args:
+	printf("Error: incorrect num of args");
+	JUMP(L_end_program);
+L_error_arg2_is_smaller_than_string:
+	printf("Error: second argument is longer than the provided string");
+	JUMP(L_end_program);
+L_error_no_args_for_sub:
+	printf("Error: minus must have at least one argument");
+	JUMP(L_end_program);
+
+L_end_program:
+	STOP_MACHINE;
+	return 0;
+}

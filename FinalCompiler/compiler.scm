@@ -975,6 +975,25 @@ done)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  HELPER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define get-minor-for-set-pvar
+	(lambda (expr)
+		(caddar expr)))
+		
+(define get-minor-for-set-bvar
+	(lambda (expr)
+		(car (cdddar expr))))
+		
+(define get-major-for-set-bvar
+	(lambda (expr)
+		(caddar expr)))
+
+(define get-var-for-set
+	(lambda (expr)
+		(cadar expr)))
+
+(define get-value-for-set
+	(lambda (expr)
+		(cadr expr)))
 
 (define get-const-val
 	(lambda (expr)
@@ -1703,8 +1722,8 @@ done)))
 ;;;;;;;;;;;;;;;;;;;; CGEN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-
 ;;;;;;; helper-functions ;;;;
+
 
 (define lst-without-last-elem
   (lambda (exp)
@@ -1736,9 +1755,10 @@ done)))
 (define T_PAIR 		885397)
 (define T_VECTOR 	335728)
 (define T_CLOSURE 	276405)
+(define T_FRACTION      451794)
 
 ;; Free addresses
- ;; 451794 544512 183403 101555 957412 645713 110463 358902
+ ;;  544512 183403 101555 957412 645713 110463 358902
  ;; 511179 615181 602995 921183 685967 286949 743140 529751 
  ;; 569917 510364 183731 805664 111363 248183 911091 400183
  ;; 922870 152305 777096 155936 721327 775216 722858 864017
@@ -1749,17 +1769,30 @@ done)))
 
 ;;Define the lists/table:
 
+(define <void-object> (if #f #f))
+
 (define const-lst '())
 
 (define sub-exps-lst '())
 
 (define const-table
-  '((10 `,(void) (T_VOID))
-    (11 () (T_NIL))
-    (12 #f (T_BOOL O))
-    (14 #t (T_BOOL 1))))
+  `((1 ,<void-object> (T_VOID))
+    (2 () (T_NIL))
+    (3 #f (T_BOOL 0))
+    (5 #t (T_BOOL 1))))
 
-(define next-free-start-address 16)
+(define next-free-start-address 7)
+
+(define reset-const-tables
+  (lambda ()
+    (set! const-lst '())
+    (set! sub-exps-lst '())
+    (set! const-table `((1 ,<void-object> (T_VOID))
+                        (2 () (T_NIL))
+                        (3 #f (T_BOOL 0))
+                        (5 #t (T_BOOL 1))))
+    (set! next-free-start-address 7)
+    ))
 
 (define void?
   (lambda (exp)
@@ -1770,6 +1803,11 @@ done)))
  (lambda (new-item)
    (set! const-lst (cons new-item const-lst))
    ))
+
+(define update-const-lst-improved
+  (lambda (new-item)
+    (set! const-lst (append new-item const-lst))
+    ))
 
   
 (define update-sub-exps-lst
@@ -1787,14 +1825,50 @@ done)))
   (lambda (exp)
     (cond ((equal? exp '()) '())
           ((not (list? exp)) exp)
-          (else ;; this is a non empty list!
+          (else 
            (if (equal? (car exp) 'const)
-               (begin (display "found const:") (display (cdr exp)) (display "\n") (update-const-lst (cdr exp))
+               (begin 
+                      (update-const-lst (cdr exp))
                       (cons (go-over-const-exp (car exp)) (go-over-const-exp (cdr exp))))
                (cons (go-over-const-exp (car exp)) (go-over-const-exp (cdr exp))))
           ))))
 
+(define go-over-const-exp-improved
+  (lambda (exp)
+    (cond ((equal? exp '()) '())
+          ((not (list? exp)) exp)
+          (else
+           (if (equal? (car exp) 'const)
+               (begin 
+                      (update-const-lst-improved (extract-constants (cadr exp)))
+                      (cons (go-over-const-exp-improved (car exp)) (go-over-const-exp-improved (cdr exp))))
+               (cons (go-over-const-exp-improved (car exp)) (go-over-const-exp-improved (cdr exp))))
+           ))))
 
+
+(define extract-constants
+  (lambda (exp)
+    (cond ((fraction? exp)
+           (begin
+                  `(,@(extract-constants (numerator exp))
+                    ,@(extract-constants (denominator exp))
+                    (,@exp))))
+          ((symbol? exp)
+           (begin 
+                  `(,(symbol->string exp) (,@exp))))                  
+          ((pair? exp)
+           (begin 
+                  `(,@(extract-constants (car exp))
+                    ,@(extract-constants (cdr exp))
+                    ,exp)))
+          ((vector? exp)
+           (begin 
+                  `(,@(apply append (map extract-constants (vector->list exp)))
+                    ,exp)))
+          (else
+           (begin 
+                  `(,exp))))))
+     
 (define topological-sort
   (lambda (lst)
       (let* ((res (begin (extract-sub-exps lst) (remove-dups sub-exps-lst)))
@@ -1824,37 +1898,43 @@ done)))
           (cons first (remove-dups (filter (lambda (item) (not (equal? item first))) lst))))
         )))
 
-(define collect-constants-cycle
+(define collect-constants-cycle-improved
   (lambda (exp)
-    (begin (go-over-const-exp exp) ;we now have const-lst that includes all the constants
+    (begin (go-over-const-exp-improved exp) 
            (set! const-lst (remove-dups const-lst))
-           (set! const-lst (topological-sort const-lst)) ;; we now have a topologicaly sorted const-lst
-           (make-const-table const-lst) ;; turn the list into the table with the required structure (+ #f #t void null)
-           ;(load-const-table-to-memory const-table)
+           (make-const-table const-lst)
+           (update-fvar-start-address next-free-start-address)
+           
+           (update-const-table-end-address next-free-start-address)
+           const-table
     )))
 
-;;search for the item in the const-table! (not const-lst)
+(define collect-constants-cycle
+  (lambda (exp)
+    (begin (go-over-const-exp exp) 
+           (set! const-lst (remove-dups const-lst))
+           (set! const-lst (topological-sort const-lst)) 
+           (make-const-table const-lst)
+           (update-fvar-start-address next-free-start-address)
+           (update-const-table-end-address next-free-start-address)
+           const-table
+    )))
+
 (define lookup-const-table
   (lambda (item-to-find const-tbl-local)
-    (cond ((equal? const-tbl-local '()) '()) ;meaning the record wasn't found
+    (cond ((equal? const-tbl-local '()) '()) 
           ((equal? (cadar const-tbl-local) item-to-find) (caar const-tbl-local))
           (else (lookup-const-table item-to-find (cdr const-tbl-local))))
     ))
 
-;;PROBABLY NOT CORRECT!!
   (define fraction?
     (lambda (exp)
       (and (equal? (integer? exp) #f) (equal? (number? exp) #t))
       ))
 
+
 (define make-const-table
   (lambda (lst)
-    ;; i have a const-lst! and a const-table
-    ;; i want to remove items from the const-lst and add them to const-table after doing (make-new-record) on them!
-     ;(if (equal? lst '())
-     ;    '()
-     ;    (begin (set! const-table (append const-table (list (make-new-record (car lst))))) (set! const-lst (cdr const-lst))
-     ;           (make-const-table const-lst)))
     (cond ((equal? lst '()) '())
           ((or (equal? (car lst) `,(void)) (equal? (car lst) '()) (equal? (car lst) #t) (equal? (car lst) #f) )
            (begin (set! const-lst (cdr const-lst)) (make-const-table const-lst)))
@@ -1866,84 +1946,373 @@ done)))
   (lambda (exp)
     (let ((old-next-start-address next-free-start-address))
       (cond ((void? exp) (begin (set! next-free-start-address (+ 1 old-next-start-address))
-                        `(,old-next-start-address ,exp ,T_VOID)))
+                        `(,old-next-start-address ,exp T_VOID)))
             ((null? exp) (begin (set! next-free-start-address (+ 1 old-next-start-address))
-                        `(,old-next-start-address ,exp ,T_NIL)))
+                        `(,old-next-start-address ,exp T_NIL)))
             ((boolean? exp) (begin (set! next-free-start-address (+ 2 old-next-start-address))
                                    (if (equal? exp #t)
-                                     `(,old-next-start-address ,exp (,T_BOOL 0))
-                                     `(,old-next-start-address ,exp (,T_BOOL 1)))))
-            ((number? exp) (begin (set! next-free-start-address (+ 2 old-next-start-address))
-                           `(,old-next-start-address ,exp (,T_INTEGER ,exp))))
-            ;((fraction? exp) `(,next-start-address ,exp (T_frac ??)))
+                                     `(,old-next-start-address ,exp (T_BOOL 0))
+                                     `(,old-next-start-address ,exp (T_BOOL 1)))))
+            ((integer? exp) (begin (set! next-free-start-address (+ 2 old-next-start-address))
+                           `(,old-next-start-address ,exp (T_INTEGER ,exp))))
+            ((fraction? exp) (begin (set! next-free-start-address (+ 3 old-next-start-address))
+                                    `(,old-next-start-address ,exp (T_FRACTION ,(lookup-const-table (numerator exp) const-table) ,(lookup-const-table (denominator exp) const-table)))))
             ((pair? exp) (begin (set! next-free-start-address (+ 3 old-next-start-address))
                                 (let ((first-elem (lookup-const-table (car exp) const-table))
                                       (second-elem (lookup-const-table (cdr exp) const-table)))
-                                  `(,old-next-start-address ,exp (,T_PAIR ,first-elem ,second-elem)))))
+                                  `(,old-next-start-address ,exp (T_PAIR ,first-elem ,second-elem)))))
             ((vector? exp) (let* ((vector-body (vector->list exp))
                                   (body-address (map (lambda (item) (lookup-const-table item const-table)) vector-body)))
                              (begin (set! next-free-start-address (+ 2 (vector-length exp) old-next-start-address))
-                             `(,old-next-start-address ,exp (,T_VECTOR ,(vector-length exp) ,@body-address) ))))
+                             `(,old-next-start-address ,exp (T_VECTOR ,(vector-length exp) ,@body-address) ))))
             ((string? exp) (let* ((string-lst (string->list exp))
                                   (string-lst-unicode (map char->integer string-lst)))
                              (begin (set! next-free-start-address (+ 2 (length string-lst) old-next-start-address))
-                              `(,old-next-start-address ,exp (,T_STRING ,(length string-lst) ,@string-lst-unicode)))))
-            ;((closure? exp) ...)
+                              `(,old-next-start-address ,exp (T_STRING ,(length string-lst) ,@string-lst-unicode)))))
             ((char? exp) (begin (set! next-free-start-address (+ 2 old-next-start-address))
-                                `(,old-next-start-address ,exp (,T_CHAR ,exp))))
+                                `(,old-next-start-address ,exp (T_CHAR ,(char->integer exp)))))
             ((symbol? exp) (begin (set! next-free-start-address (+ 2 old-next-start-address))
                                    `(,old-next-start-address ,exp (T_SYMBOL ,(lookup-const-table (symbol->string exp) const-table)))) ))
       )))
 
 
-(define make-const-lst-for-mem
-  (lambda (tbl)
-    (
+;;;;;;; loading the const-table into memory:
 
+
+;;should return a string
+(define load-const-table
+  (lambda (tbl)
+
+    (begin 
+           (set! const-lst '())
+           (make-new-lst-from-const-table (list-reverse const-table))
+           (const-lst-to-string const-lst 1)
+    )))
+
+  (define make-new-lst-from-const-table
+    (lambda (tbl)
+
+      (if (equal? tbl '())
+          '()
+          (let ((next-exp (caddar tbl)))
+            (begin 
+              (set! const-lst (append next-exp const-lst))
+              (make-new-lst-from-const-table (cdr tbl)))
+            ))))
+
+(define type->string
+  (lambda (exp)
+
+    (cond ((equal? exp '()) "")
+          ((number? exp) (number->string exp))
+          ((string? exp) exp)
+          ((symbol? exp) (symbol->string exp))
+          ((char? exp) (string exp))
+          (else (display "error in type->string"))
+    )))
+
+
+(define const-lst-to-string
+  (lambda (lst const-lst-counter)
+    (if (equal? lst '())
+        ""
+        (string-append tab "MOV(IND("(number->string const-lst-counter)"),IMM("(type->string (car lst))"));" nl (const-lst-to-string (cdr lst) (+ 1 const-lst-counter))))
     ))
+
+(define lookup-const-lst
+  (lambda (item-to-find lst)
+    (cond ((equal? lst '()) '()) 
+          ((equal? (cadar const-tbl-local) item-to-find) (caar const-tbl-local))
+          (else (lookup-const-table item-to-find (cdr const-tbl-local))))
+    ))
+
+(define lookup-const-lst
+  (lambda (item-to-find lst)
+    (cond ((equal? lst '()) 1)
+          ((equal? (car lst) item-to-find) 1)
+          (else (+ 1 (lookup-const-lst item-to-find (cdr lst)))))
+    ))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;free vars table;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+
+(define const-table-end-address 10)
+
+(define update-const-table-end-address
+  (lambda (address)
+    (set! const-table-end-address address)
+    ))
+
+(define fvar-next-free-start-address 0)
+
+(define update-fvar-start-address
+  (lambda (address)
+    (set! fvar-next-free-start-address (+ address 1))
+    ))
+
+(define primitive-fvar-lst
+  (lambda ()
+    (let ((primi-lst `((,(+ 1 const-table-end-address) car "LmakeCarClos" "LcarBody")
+                       (,(+ 2 const-table-end-address) cdr "LmakeCdrClos" "LcdrBody")
+                       (,(+ 3 const-table-end-address) cons "LmakeConsClos" "LconsBody")
+                       (,(+ 4 const-table-end-address) equal? "LmakeEqualClos" "LequalBody")
+                       (,(+ 5 const-table-end-address) set-car! "LmakeSetCar" "LsetCarBody")
+                       (,(+ 6 const-table-end-address) set-cdr! "LmakeSetCdr" "LsetCdrBody")
+                       (,(+ 7 const-table-end-address) pair? "LmakeIsPairClos" "LisPairBody")
+                       (,(+ 8 const-table-end-address) procedure? "LmakeIsProcedureClos" "LisProcedureBody")
+                       (,(+ 9 const-table-end-address) zero? "LmakeZeroClos" "LzeroBody")
+                       (,(+ 10 const-table-end-address) vector "LmakeVectorClos" "LvectorBody")
+                       (,(+ 11 const-table-end-address) vector-length "LmakeVectorLengthClos" "LvectorLengthBody")
+                       (,(+ 12 const-table-end-address) vector-ref "LmakeVectorRefClos" "LvectorRefBody")
+                       (,(+ 13 const-table-end-address) vector-set! "LmakeVectorSetClos" "LvectorSetBody")
+                       (,(+ 14 const-table-end-address) vector? "LmakeIsVectorClos" "LisVectorBody")
+                       (,(+ 15 const-table-end-address) gcd "LmakeGcd" "LgcdBody")
+                       (,(+ 16 const-table-end-address) compare-strings "LmakeCompareStrings" "LcompareStringsBody")
+                       (,(+ 17 const-table-end-address) string->symbol "LmakeStringToSymbol" "LstringToSymbolBody")
+                       (,(+ 18 const-table-end-address) make-string "LmakeMakeString" "LmakeStringBody")
+                       (,(+ 19 const-table-end-address) symbol->string "LmakeSymbolToStringBody" "LsymbolToStringBody")
+                       (,(+ 20 const-table-end-address) string? "LmakeIsString" "LisStringBody")
+                       (,(+ 21 const-table-end-address) symbol? "LmakeIsSymbol" "LisSymbolBody")
+                       (,(+ 22 const-table-end-address) string-length "LmakeStringLength" "LstringLengthBody")
+                       (,(+ 23 const-table-end-address) string-ref "LmakeStringRefBody" "LstringRefBody")
+                       (,(+ 24 const-table-end-address) string-set! "LmakeStringSetBody" "LstringSetBody")
+                       (,(+ 25 const-table-end-address) null? "LmakeIsNullBody" "LisNullBody")
+                       (,(+ 26 const-table-end-address) number? "LmakeIsNumberBody" "LisNumberBody")
+                       (,(+ 27 const-table-end-address) + "LmakePlus" "LplusBody")
+                       (,(+ 28 const-table-end-address) push-registers "LmakePushRegisters" "LpushRegisters")
+                       (,(+ 29 const-table-end-address)  pop-registers "LmakePopRegisters" "LpopRegisters")
+                       (,(+ 30 const-table-end-address) * "LmakeMultBody" "LmultBody")
+                       (,(+ 31 const-table-end-address) / "LmakeDivBody" "LdivBody")
+                       (,(+ 32 const-table-end-address) < "LmakeSmallerThan" "LSmallerThanBody")
+                       (,(+ 33 const-table-end-address) > "LmakeLargerThanBody" "LlargerThanBody")
+                       (,(+ 34 const-table-end-address) = "LmakeEqualThanBody" "LequalThanBody")
+		       (,(+ 35 const-table-end-address) - "LmakeMinus" "LmakeMinusBody")
+		       (,(+ 36 const-table-end-address) apply "LmakeApply" "LmakeApplyBody")
+                       (,(+ 37 const-table-end-address) char->integer "LmakeCharToIntegerBody" "LcharToIntegerBody")
+                       (,(+ 38 const-table-end-address) char? "LmakeIsCharBody" "LisCharBody")
+                       (,(+ 39 const-table-end-address) boolean? "LmakeIsBooleanBody" "LisBooleanBody")
+                       (,(+ 40 const-table-end-address) rational? "LmakeIsRationalBody" "LisRationalBody")
+                       (,(+ 41 const-table-end-address) integer? "LmakeIsIntegerBody" "LisIntegerBody")
+                       (,(+ 42 const-table-end-address) numerator "LmakeNumeratorBody" "LnumeratorBody")
+                       (,(+ 43 const-table-end-address) denominator "LmakeDenominatorBody" "LdenominatorBody")
+                       (,(+ 44 const-table-end-address) eq? "LmakeIsEqBody" "LisEqBody")
+                       (,(+ 45 const-table-end-address) remainder "LmakeRemainderBody" "LremainderBody")
+                       (,(+ 46 const-table-end-address) integer->char "LmakeIntegerToCharBody" "LintegerToCharBody")
+                       (,(+ 47 const-table-end-address) not "LmakeNotBody" "LnotBody")
+                       (,(+ 48 const-table-end-address) make-vector "LmakeMakeVectorBody" "LmakeVectorBody")
+                       (,(+ 49 const-table-end-address) list "LmakeList" "LlistBody")
+                       (,(+ 50 const-table-end-address) map "LmakeMap" "LmapBody")
+                       (,(+ 51 const-table-end-address) append-two-lists "LmakeAppendTwoListsBody" "LappendTwoListsBody")
+                       (,(+ 52 const-table-end-address) append-list-and-element "LmakeAppendListAndElementBody" "LappendListAndElementBody")
+                       (,(+ 53 const-table-end-address) append "LmakeAppendBody" "LappendBody"))))
+
+      
+      (begin 
+             (update-fvar-start-address (+ const-table-end-address (length primi-lst))) primi-lst))))
+
+(define fvar-table '())
+
 (define fvar-lst '())
+
+(define reset-fvar-tables
+  (lambda ()
+    (set! fvar-table '())
+    (set! fvar-lst '())
+    (set! fvar-counter (lambda () (+ 1 const-table-end-address (length (primitive-fvar-lst)))))
+ ))
+
+(define fvar-counter
+  (lambda ()
+    (begin 
+      (+ 1 const-table-end-address (length (primitive-fvar-lst))) )))
 
 (define update-fvar-lst
  (lambda (new-item)
    (set! fvar-lst (cons new-item fvar-lst))
    ))
 
+;; we will add fvar's that aren't primitive
 (define go-over-fvar-exp
   (lambda (exp)
     (cond ((equal? exp '()) '())
           ((not (list? exp)) exp)
-          (else ;; this is a non empty list!
-           (if (equal? (car exp) 'fvar)
-               (begin (display "found fvar:") (display (cdr exp)) (display "\n") (update-fvar-lst (cdr exp))
+          (else 
+           (if (and (equal? (car exp) 'fvar) (equal? (lookup-fvar-table (cadr exp) (primitive-fvar-lst)) '()))
+               (begin
+                      (update-fvar-lst (cdr exp))
                       (cons (go-over-fvar-exp (car exp)) (go-over-fvar-exp (cdr exp))))
                (cons (go-over-fvar-exp (car exp)) (go-over-fvar-exp (cdr exp))))
           ))))
 
+;;build the fvar-table (non primitive's)
+(define create-fvar-table
+  (lambda (lst)
+    (if (equal? lst '())
+        '()
+          (begin (set! fvar-table (cons `(,(fvar-counter) ,(caar lst) "0xDEF") fvar-table))
+                 (set! fvar-counter (lambda () (+ 1 (+ 1 const-table-end-address (length (primitive-fvar-lst))) )))
+                 (set! fvar-lst (cdr fvar-lst))
+                 (create-fvar-table fvar-lst)))
+    ))
+
+;;full - cycle collect
+(define collect-fvars-cycle
+  (lambda (exp)
+    (begin (go-over-fvar-exp exp) (set! fvar-lst (remove-dups fvar-lst)) (create-fvar-table fvar-lst)
+           (set! fvar-table (list-reverse fvar-table)))
+    ))
+
+;;go over the fvar-table
+(define generate-fvar-string
+  (lambda (tbl)
+    (if (equal? tbl '())
+        ""
+        (let* ((record (car tbl))
+              (record-address (car record))
+              (record-value (caddr record)))
+        (string-append tab "MOV(IND("(type->string record-address)"),"(type->string record-value)");" nl (generate-fvar-string (cdr tbl)))))
+    ))
+
+
+(define call-primitive-fvar-lst
+  (lambda (lst)
+    (if (equal? lst '())
+        ""
+        (let ((label (caddar lst)))
+          (if (equal? label "")
+              (string-append "" (call-primitive-fvar-lst (cdr lst)))
+          (string-append tab "CALL("label");" nl (call-primitive-fvar-lst (cdr lst))))))
+    ))
+
+
+;;returns the address of the fvar in the fvar table
+(define lookup-fvar-table
+  (lambda (item-to-find tbl)
+    (if (equal? tbl '())
+        '()
+        (let* ((record (car tbl))
+              (record-address (car record))
+              (record-tag (cadr record)))
+          (if (equal? record-tag item-to-find)
+              record-address
+              (lookup-fvar-table item-to-find (cdr tbl)))))
+    ))
+
+
+(define final-fvars-string
+  (lambda (exp)
+    (begin (collect-fvars-cycle exp)
+           (print-to-make-labels-file)
+           (string-append
+            (call-primitive-fvar-lst (primitive-fvar-lst))
+           (generate-fvar-string fvar-table))) 
+    ))
+
+(define lookup-fvar-tables
+  (lambda (item-to-find)
+    (let ((item-in-primitives (lookup-fvar-table item-to-find  (primitive-fvar-lst)))
+          (item-in-fvars (lookup-fvar-table item-to-find fvar-table)))
+      (if (equal? item-in-primitives '())
+          item-in-fvars
+          item-in-primitives))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Symbol Table/List;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define symbol-table-string-rep "")
+
+
+(define get-const-table-string-records
+  (lambda ()
+    (letrec ((helper (lambda (tbl)
+                    (cond ((equal? tbl '()) '())
+                          ((equal? (car (caddar tbl)) 'T_STRING) (cons (caar tbl)
+                                                                       (helper (cdr tbl))))
+                          (else (helper (cdr tbl)))))))
+      (set! symbol-table (helper const-table))
+      symbol-table
+      )    
+    ))
+
+
+(define create-symbol-table-helperM
+  (lambda (lst counter)
+                     (cond ((equal? lst '()) "")
+                           ((equal? (cdr lst) '())
+                                 (string-append tab "MOV(IND(" (type->string counter) ")," (type->string (car lst)) ");" nl
+                                                tab "MOV(IND(" (type->string (+ 1 counter)) "),2);" nl
+                                                (create-symbol-table-helperM (cdr lst) (+ 1 counter))))
+                           (else (string-append tab "MOV(IND(" (type->string counter) ")," (type->string (car lst)) ");" nl
+                                                tab "MOV(IND(" (type->string (+ 1 counter)) ")," (type->string (+ 2 counter)) ");" nl
+                                                (create-symbol-table-helperM (cdr lst) (+ 2 counter)))))))
+
+
+(define create-symbol-table
+   (lambda ()
+     (letrec
+           ((sym-table-helper (lambda (lst counter)
+                     (cond ((equal? lst '()) "")
+                           ((equal? (cdr lst) '())
+                                 (string-append "12345"))
+                           (else (string-append "789"))))))
+
+       (begin 
+         (set! symbol-table-string-rep (create-symbol-table-helperM (get-const-table-string-records) (fvar-counter))))
+         (if (eq? symbol-table-string-rep "")
+             (begin 
+                    (set! symbol-table-string-rep (string-append tab "MOV(IND(" (type->string (fvar-counter)) "),-1);" nl
+                                                          tab "MOV(IND(" (type->string (+ 1 (fvar-counter))) "),2);" nl))))
+         symbol-table-string-rep)
+
+       ))
+
+(define create-symbol-table2
+   (lambda ()
+     (letrec
+           ((sym-table-helper (lambda (lst counter)
+                     (cond ((equal? lst '()) "")
+                           ((equal? (cdr lst) '())
+                                 (string-append tab "MOV(IND(" (type->string counter) ")," (type->string (car lst)) ");" nl
+                                                tab "MOV(IND(" (type->string (+ 1 counter)) "),2);" nl
+                                                (sym-table-helper (cdr lst) (+ 1 counter))))
+                           (else (string-append tab "MOV(IND(" (type->string counter) ")," (type->string (car lst)) ");" nl
+                                                tab "MOV(IND(" (type->string (+ 1 counter)) ")," (type->string (+ 2 counter)) ");" nl
+                                                (sym-table-helper (cdr lst) (+ 2 counter))))))))
+       
+       (begin 
+         (set! symbol-table-string-rep (begin 
+                                              (sym-table-helper (get-const-table-string-records) (fvar-counter))))
+         (if (eq? symbol-table-string-rep "")
+             (begin
+                    (set! symbol-table-string-rep (string-append tab "MOV(IND(" (type->string (fvar-counter)) "),-1);" nl
+                                                          tab "MOV(IND(" (type->string (+ 1 (fvar-counter))) "),2);" nl))))
+         symbol-table-string-rep)
+
+       )))
+  
+(define symbol-table '())
 
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Symbol-list;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define full-cycle
   (lambda (input)
-    (annotate-tc (pe->lex-pe (box-set (remove-applic-lambda-nil (eliminate-nested-defines input)))))
+	(annotate-tc 
+		(pe->lex-pe 
+			(box-set 
+				(remove-applic-lambda-nil 
+					(eliminate-nested-defines 
+						 input)))))
     ))
+
+ 
+(define nl (list->string (list #\newline)))
+(define tab "\t")
 
 (define ^^label
   (lambda (name)
@@ -1951,166 +2320,933 @@ done)))
       (lambda ()
         (set! n (+ n 1))
         (string-append name
-                       (number->string n))))))
+                       (number->string n))))
+))
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Label List ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;label list : 
-(define ^label-if3else (^^label "Lif3else"))
-(define ^label-if3exit (^^label "Lif3exit"))
-(define ^label-end-program (^^label "Lend"))
-(define label-end (^label-end-program))
+(define L_error_cannot_apply_non_clos       "L_error_cannot_apply_non_clos")
+(define L_error_lambda_args_count           "L_error_lambda_args_count")
+(define L_error_incorrect_num_of_args       "L_error_incorrect_num_of_args")
+(define L_error_incorrect_type              "L_error_incorrect_type")
+(define L_error_not_valid_index             "L_error_not_valid_index")
+(define L_error_second_arg_is_zero          "L_error_second_arg_is_zero")
+(define L_error_arg2_is_smaller_than_string "L_error_arg2_is_smaller_than_string")
+(define L_error_no_args_for_sub             "L_error_no_args_for_sub")
+
+(define label-end      "L_end_program")
+(define L_if_else_     (^^label "L_if_else_"))
+(define L_if_exit_     (^^label "L_if_exit_"))
+(define L_or_exit_     (^^label "L_or_exit_"))
+(define L_end_program_ (^^label "L_end_program_"))
+(define L_clos_body_   (^^label "L_clos_body_"))
+(define L_clos_exit_   (^^label "L_clos_exit_"))
+(define L_loop_start_  (^^label "L_loop_start_"))
+(define L_loop_end_    (^^label "L_loop_end_"))
+(define L_R0_is_void_  (^^label "L_R0_is_void_"))
+
 (define nl (list->string (list #\newline)))
 (define tab "\t")
 
-(define prologue "/* cisc.c
+(define error_labels
+	(string-append
+		tab "JUMP(" label-end ");" nl
+		L_error_cannot_apply_non_clos ":" nl
+		tab "printf(\"Error: cannot_apply_non_clos\");" nl
+		tab "JUMP(" label-end ");" nl
+		L_error_lambda_args_count ":" nl
+		tab "printf(\"Error: Error: lambda_args_count\");" nl
+          	tab "JUMP(" label-end ");" nl
+          	L_error_incorrect_type ":" nl
+          	tab "printf(\"Error: incorrect type\");" nl
+          	tab "JUMP(" label-end ");" nl
+                L_error_not_valid_index ":" nl
+                tab "printf(\"Error: not a valid index\");" nl
+                tab "JUMP(" label-end ");" nl
+                L_error_second_arg_is_zero ":" nl
+                tab "printf(\"Error: second argument is zero\");" nl
+                tab "JUMP(" label-end ");" nl
+          	L_error_incorrect_num_of_args ":" nl
+          	tab "printf(\"Error: incorrect num of args\");" nl
+          	tab "JUMP(" label-end ");" nl
+                L_error_arg2_is_smaller_than_string ":" nl
+                tab "printf(\"Error: second argument is longer than the provided string\");" nl
+          	tab "JUMP(" label-end ");" nl
+		L_error_no_args_for_sub ":" nl
+	    	tab "printf(\"Error: minus must have at least one argument\");" nl
+		tab "JUMP(" label-end ");" nl
+))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(define prologue "
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* change to 0 for no debug info to be printed: */
 #define DO_SHOW 1
-#define T_VOID 		937610
-#define T_NIL 		722689
-#define T_BOOL 		741553
-#define T_CHAR 		181048
-#define T_INTEGER 	945311
-#define T_STRING 	799345
-#define T_SYMBOL 	368031
-#define T_PAIR 		885397
-#define T_VECTOR 	335728
-#define T_CLOSURE 	276405
+
+#define SOB_VOID  1
+#define SOB_NIL   2
+#define SOB_FALSE 3
+#define SOB_TRUE  5
+
+
 #include \"cisc.h\"
+#include \"debug_macros.h\"
+
 
 int main()
 {
   START_MACHINE;
 
   JUMP(CONTINUE);
-
+  
 #include \"char.lib\"
 #include \"io.lib\"
 #include \"math.lib\"
 #include \"string.lib\"
 #include \"system.lib\"
+#include \"scheme.lib\"
+#include \"primitives.lib\"
 
- CONTINUE:")
 
-(define epilogue
-  (let ();((label-end (^label-end-program)))
+CONTINUE:")
+
+
+(define epilogue                ;;;;;;;;;;;;; add all Error Labels ;;;;;;;;
   (string-append
-   tab "CMP (R0, IMM(T_NIL));" nl
-   tab "JUMP_EQ("label-end");" nl
-   tab "SHOW (\"STR[0] = \", R0);" nl
+   tab "JUMP(" label-end ");" nl
+   tab error_labels nl
    label-end ":" nl
    tab "STOP_MACHINE;" nl
    tab "return 0;" nl
    "}"
-   )))
+   ))
 
-(define *left-to-implement* "
-append (variadic), apply, < (variadic), = (variadic), > (variadic), + (variadic), / (variadic),
-* (variadic), - (variadic), boolean?, car, cdr, char->integer, char?, cons, denominator,
-eq?, integer?, integer->char, list (variadic), make-string, make-vector, map, not, null?,
-number?, numerator, pair?, procedure?, rational?, remainder, set-car!, set-cdr!, string-length,
-string-ref, string-set!, string->symbol, string?, symbol?, symbol->string, vector, vector-length,
-vector-ref, vector-set!, vector?, zero?")
+(define print-value-of-R0
+	(lambda ()
+		(let ((L_R0_is_void (L_R0_is_void_)))
+			(string-append
+				tab "CMP(R0, IMM(SOB_VOID));" nl
+				tab "JUMP_EQ(" L_R0_is_void ");" nl
+				
+				tab "PUSH(R0);" nl
+                                tab "CALL(WRITE_SOB);" nl
+                                tab "DROP(1);" nl
+                                tab "PUSH(IMM(10));" nl
+                                tab "CALL(PUTCHAR);" nl
+                                tab "DROP(1);" nl
+                                
+                                L_R0_is_void ":" nl
+			)
+		)
+))
 
-(define listOfExps
+(define compile_and_run
+  (lambda (file_name)
+    (compile-scheme-file file_name "peter.c" )
+	(system "gcc -c peter.c")
+    (system "gcc -o peter peter.o")
+    (system "./peter"))
+ )
+
+(define go!! (lambda () (compile_and_run "game.scm")))
+
+(define get-lst-of-exp-from-file
   (lambda (parser string)
     (parser (string->list string)
 	    (lambda (e s)
 	      (append (list e)
-		(listOfExps <sexpr> (list->string s))))
+		(get-lst-of-exp-from-file <sexpr> (list->string s))))
 	    (lambda (w) `()))))
 
 
 (define code-gen-const
-  (lambda (exp)
+  (lambda (exp major)
     (let ((const-address (lookup-const-table exp const-table)))
-    (string-append tab "MOV (R0,IMM("const-address");" nl))
-    ))
+    (string-append "MOV (R0,IMM("(type->string const-address)"));" nl)))
+    )
 
   
-(define code-gen-if3
-          (lambda (test do-if-true do-if-false)
-            (let ((code-test "1")
-                  (code-dit "2")
-                  (code-dif "3")
-                  (label-else (^label-if3else))
-                  (label-exit (^label-if3exit)))
-              (string-append
-               nl
-               tab code-test nl ; when run, the result of the test will be in R0
-               tab "CMP(R0, IMM(0));" nl
-               tab "JUMP_EQ(" label-else ");" nl
-               tab code-dit nl
-               tab "JUMP(" label-exit ");" nl
-               label-else ":" nl
-               tab code-dif nl
-               label-exit ":" nl))))
+(define cgen-fvar
+  (lambda (exp major)
+    (let* ((exp-var (car exp))
+          (fvar-address (lookup-fvar-tables exp-var)))
+      (begin 
+      (string-append tab "MOV(R0, IND("(type->string fvar-address)"));"))) 
+    ))
 
-(define code-gen-or
-  (lambda (args)
-    ;(display "inside c-gen-or") (display "\n")
-    ;(display args)
-    ;; CMP (R0, IMM(0));
-    ;; JUMP_EQ(Lend1);
-    (let ;((args-after-code-gen (map code-gen args))
-          ((args-after-code-gen '("a" "b" "c" "d" "e")))
+
+(define prepare-for-cgen-if3
+  (lambda (exp major)
+    (cgen-if3 (get-if-condition exp) (get-if-first exp) (get-if-second exp) major)
+    ;; sends to cgen-if3
+  ))
+
+(define cgen-if3
+  (lambda (test do-if-true do-if-false major)
+    (let ((L_if_else (L_if_else_))
+          (L_if_exit (L_if_exit_))
+		  (code-test (code-gen test major))
+          (code-dit (code-gen do-if-true major))
+          (code-dif (code-gen do-if-false major)))
+      (string-append
+       code-test nl ; when run, the result of the test will be in R0
+       "/* end-code-test */" nl
+       tab "CMP(R0, IMM(SOB_FALSE));" nl
+       tab "JUMP_EQ(" L_if_else ");" nl
+       "/* code-dit: */" nl
+       code-dit nl
+       "/* end code-dit: */" nl
+       tab "JUMP(" L_if_exit ");" nl
+       L_if_else ":" nl
+       "/* code-dif: */" nl
+       code-dif nl
+        "/* end code-dif */" nl
+       L_if_exit ":" nl ))
+   ))
+
+
+
+   
+(define cgen-seq
+  (lambda (args major)
+    (let ((args-after-code-gen (map (lambda (item) (code-gen item major)) args)))
       (string-append (fold-right
                       (lambda (item1 item2)
-                        (string-append  item1 nl "CMP (R0, IMM(0));" nl "JUMP_EQ("label-end")" nl item2))
-                        ""
-                        (lst-without-last-elem args-after-code-gen))
-                      (last-elem-of-lst args-after-code-gen)))
-    ;(map (lambda (item)
-    ;       (if 
-    ;       (string-append (code-gen item) ))
-    ;     args)
+                        (string-append item1 nl item2))
+                        "" args-after-code-gen)))
    ))
 
 ;;pre-condition: exp is cadr of original expression (doesn't include tag)
 (define prepare-for-cgen-or
-  (lambda (exp)
-    (display "hi inside prepare-c-gen-or") (display "\n")
-    (code-gen-or (car exp))
+  (lambda (exp major)
+    (cgen-or (car exp) major)
+))
+
+(define cgen-or
+  (lambda (args major)
+    (let ((L_or_exit (L_or_exit_))
+    	  (args-after-code-gen (map (lambda (item) (code-gen item major)) args)))
+      (string-append 
+      		(fold-right
+	              (lambda (item1 item2)
+	                (string-append  
+	                item1 nl 
+	                tab "CMP (R0, IMM(SOB_FALSE));" nl 
+	               tab  "JUMP_NE(" L_or_exit ")" nl 
+	                item2))
+	                ""
+	                (lst-without-last-elem args-after-code-gen))
+	              (last-elem-of-lst args-after-code-gen) nl
+	                L_or_exit":" nl))
+   ))
+
+(define prepare-for-cgen-applic
+  (lambda (exp major)
+    (let ((operator (get-applic-operator exp))
+          (operands (get-applic-operands exp)))
+      (cgen-applic operator operands (length operands) major))
     ))
 
-;; pre-condition: exp is cdr of original expression (doesn't include tag)
-(define prepare-for-cgen-if3
-  (lambda (exp)
-    ;(display (get-if-condition exp)) (display (get-if-first exp)) (display (get-if-second exp))
-    ;(display "newline")
-    (code-gen-if3 (get-if-condition exp) (get-if-first exp) (get-if-second exp))
-    ;; sends to code-get-if-3
+(define cgen-applic
+  (lambda (operator operands n major)
+  	(begin 
+    (let* ((operator-code (code-gen operator major))
+    	  (operands-code (map (lambda (item) (code-gen item major)) (list-reverse operands)))
+    	  (num-of-args (number->string n)))
+    	(string-append
+    		(fold-right
+              (lambda (item1 item2)
+                (string-append 
+			    	item1 nl 
+			    	tab "PUSH(R0);" nl
+			    	item2))
+			        "" operands-code)
+
+					tab "PUSH(IMM(" num-of-args "));" nl
+					operator-code nl
+					tab "CMP(INDD(R0,0), IMM(T_CLOSURE));" nl
+					tab "JUMP_NE(" L_error_cannot_apply_non_clos ");" nl
+					tab "PUSH(INDD(R0,1));" nl
+					tab "CALLA(INDD(R0,2));" nl
+					tab "DROP(1);" nl
+					tab "POP(R1);" nl
+					tab "DROP(R1);" nl
+    		)))
+))
+
+(define prepare-for-cgen-tc-applic
+  (lambda (exp major)
+    (let ((operator (get-applic-operator exp))
+          (operands (get-applic-operands exp)))
+      (cgen-tc-applic operator operands (length operands) major))
+    ))
+
+(define cgen-tc-applic
+  (lambda (operator operands n major)
+  	(begin 
+    (let* ((operator-code (code-gen operator major))
+    	  (operands-code (map (lambda (item) (code-gen item major)) (list-reverse operands)))
+    	  (num-of-args (number->string n))
+    	  (L_loop_start (L_loop_start_))
+		  (L_loop_end   (L_loop_end_)))
+    	(string-append
+    		(fold-right
+              (lambda (item1 item2)
+                (string-append 
+			    	 item1 nl 
+			   		tab "PUSH(R0);" nl
+			    	 item2))
+			        "" 
+			         operands-code)
+
+					tab "PUSH(IMM(" num-of-args "));" nl
+					tab operator-code nl
+					tab "CMP(INDD(R0,0), IMM(T_CLOSURE));" nl
+					tab "JUMP_NE(" L_error_cannot_apply_non_clos ");" nl
+					tab "PUSH(INDD(R0,1));" nl ; env'
+					tab "PUSH(FPARG(-1));" nl ; push old return address
+					tab "MOV(R1,FPARG(-2));" nl ; put old frame point (fp) in R1
+					tab "MOV(R7,FPARG(1) + 4);" nl ;old frame size
+
+					;for loop:
+					tab "MOV(R2,IMM(" num-of-args " + 3));" nl ; int i = num args + 3 => size of new frame
+					tab "MOV(R10,IMM(-3));" nl ;         end of new frame (upper one)
+					tab "MOV(R11,IMM(FPARG(1)+1));" nl ; end of old frame (lower one)
+						L_loop_start ":" nl
+						tab "CMP(R2,IMM(0));" nl
+						tab "JUMP_EQ(" L_loop_end ");" nl
+						tab "MOV(FPARG(R11),FPARG(R10));" nl ; replace old frame with new frame (one arg per iter)
+						tab "DECR(R10);" nl       ; 
+						tab "DECR(R11);" nl       ; 
+						tab "DECR(R2);" nl 		  ; i--
+						tab "JUMP(" L_loop_start ");" nl
+						L_loop_end ":" nl
+					tab "DROP(R7);" nl ; drop as size of old frame
+					tab "MOV(FP,R1);" nl ; update fp
+					tab "JUMPA(INDD(R0,2));" nl
+    		)))
+))
+
+(define cgen-lambda-general       ;;;;; add in code-gen logic for setting major by num of nested lambdas
+	(lambda (major L_clos_exit)
+	(begin 
+		(let ((maj    (number->string major))
+			  (L_clos_body    (L_clos_body_))
+			  (L_loop_start_1 (L_loop_start_))
+			  (L_loop_end_1   (L_loop_end_))
+			  (L_loop_start_2 (L_loop_start_))
+			  (L_loop_end_2   (L_loop_end_)))
+		(string-append 
+		tab "MOV(R1,FPARG(0))" nl ; env
+		tab "MOV(R4,IMM(1 + " maj "));" nl
+		tab "PUSH(R4);" nl 
+		tab "CALL(MALLOC);" nl
+		tab "DROP(1);" nl 
+		tab "MOV(R2, R0);" nl
+
+		;for loop:
+		tab "MOV(R10,IMM(0));" nl  ;int i=0
+		tab "MOV(R11,IMM(1));" nl ;int j=1
+		L_loop_start_1 ":" nl
+		tab "CMP(R10,IMM(" maj "));" nl
+		tab "JUMP_EQ(" L_loop_end_1 ");" nl
+		tab "MOV(INDD(R2,R11), INDD(R1,R10));" nl ;R2[j] = R1[i]
+		tab "INCR(R10);" nl       ; i++
+		tab "INCR(R11);" nl       ; j++
+		tab "JUMP(" L_loop_start_1 ");" nl
+		L_loop_end_1 ":" nl
+
+		tab "MOV(R3,FPARG(1));" nl
+		tab "PUSH(R3);" nl
+		tab "CALL(MALLOC);" nl
+		tab "DROP(1);" nl
+		tab "MOV(INDD(R2,0),R0);" nl
+
+		;for loop:
+		tab "MOV(R10,IMM(0));" nl  ;int i=0
+		tab "MOV(R11,IMM(2));" nl ;int j=2
+		L_loop_start_2 ":" nl
+		tab "CMP(R10,R3);" nl
+		tab "JUMP_EQ(" L_loop_end_2 ");" nl
+		tab "MOV(R7,INDD(R2,0));" nl   ;‫‪R2[0][i]=FPARG[j]
+		tab "MOV(INDD(R7,R10),FPARG(R11));" nl
+		tab "INCR(R10);" nl       ; i++
+		tab "INCR(R11);" nl       ; j++
+		tab "JUMP(" L_loop_start_2 ");" nl
+		L_loop_end_2 ":" nl
+	
+		tab "MOV(R4, IMM(3));" nl
+		tab "PUSH(R4);" nl
+		tab "CALL(MALLOC);" nl
+		tab "DROP(1);" nl
+		tab "MOV(INDD(R0,0),IMM(T_CLOSURE));" nl
+		tab "MOV(INDD(R0,1),R2);" nl
+		tab "MOV(INDD(R0,2),LABEL(" L_clos_body "));" nl
+		tab "JUMP(" L_clos_exit ");" nl
+		L_clos_body ":" nl
+		)))
+	))
+
+(define cgen-lambda-simple 
+	(lambda (exp major)
+		(begin 
+
+		(let ((num-args (number->string (length (car exp))))
+			  (e        (code-gen (cadr exp) major))
+			  (L_clos_exit    (L_clos_exit_)))
+			(string-append 
+				; general code-gen for lambdas 
+				(cgen-lambda-general major L_clos_exit)
+				; code for body of closure in lambda simple:
+				tab "PUSH(FP);" nl
+				tab "MOV(FP,SP);" nl
+				tab"CMP(FPARG(1),IMM(" num-args "));" nl
+				tab "JUMP_NE(" L_error_lambda_args_count ");" nl
+				e nl
+				tab"POP(FP);" nl
+				tab"RETURN;" nl
+				L_clos_exit ":" nl)))
+	))
+
+(define cgen-lambda-opt
+	(lambda (exp major)
+	(begin 
+		(let ((num-args (number->string (length (car exp))))
+			  (e        (code-gen (caddr exp) major))
+			  (L_clos_exit    (L_clos_exit_))
+			  (L_loop_start_3 (L_loop_start_))
+			  (L_loop_end_3   (L_loop_end_)))
+		
+			(string-append 
+				; general code-gen for lambdas 
+				(cgen-lambda-general major L_clos_exit)
+				; code for body of closure in lambda opt:
+				tab "PUSH(FP);" nl
+				tab"MOV(FP,SP);" nl
+
+				tab"MOV(R1,IMM(SOB_NIL));" nl
+				tab "MOV(R8,IMM(" num-args "));" nl ;num of concrete args
+				tab"MOV(R9,FPARG(1));" nl          ; num of total args
+				;for loop:
+
+				tab"MOV(R10,IMM(1 + R9));" nl ;int i= num of total args + 2
+				L_loop_start_3 ":" nl
+				tab"CMP(R10,IMM(1 + R8));" nl
+				tab "JUMP_EQ(" L_loop_end_3 ");" nl
+				
+				; make list of args:
+				tab "PUSH(R1);" nl
+				tab "PUSH(FPARG(R10));" nl
+				tab "PUSH(IMM(2));" nl
+				tab "PUSH(IMM(777));" nl
+				tab "CALL(LconsBody);" nl   ; MOV(R1, (CONS (FPARG(R10)) ,R1));" nl
+				tab "MOV(R1,R0);" nl
+				tab "DROP(IMM(4));" nl
+
+				tab "DECR(R10);" nl        ; i++
+				tab "JUMP(" L_loop_start_3 ");" nl
+				L_loop_end_3 ":" nl
+				tab "MOV(FPARG(1), IMM(" num-args " + 1));" nl ; update num of args
+				tab"MOV(FPARG(2 + R8), R1);" nl ; put the list of optional args after concrete args in the stack
+				e nl
+				tab "POP(FP);" nl
+				tab "RETURN;" nl
+				L_clos_exit ":" nl
+				)))
+	))
+
+(define cgen-lambda-var
+	(lambda (exp major)
+	  (begin 
+		(let (
+			  (e    (code-gen (cadr exp) major))
+			  (L_clos_exit    (L_clos_exit_))
+			  (L_loop_start_4 (L_loop_start_))
+			  (L_loop_end_4   (L_loop_end_)))
+
+		(string-append 
+				; general code-gen for lambdas 
+				(cgen-lambda-general major L_clos_exit)
+				; code for body of closure in lambda var:
+				tab "PUSH(FP);" nl
+				tab "MOV(FP,SP);" nl
+
+				tab "MOV(R1,IMM(SOB_NIL));" nl
+				tab "MOV(R9,FPARG(1));" nl      ; num of total args
+				;for loop:
+
+				tab "MOV(R10,IMM(1 + R9));" nl ;int i = num of total args + 2
+				L_loop_start_4 ":" nl
+				tab "CMP(R10,IMM(1));" nl
+				tab "JUMP_EQ(" L_loop_end_4 ");" nl
+				
+				; make list of args:
+				tab "PUSH(R1);" nl
+				tab "PUSH(FPARG(R10));" nl
+				tab "PUSH(IMM(2));" nl
+				tab "PUSH(IMM(777));" nl
+				tab "CALL(LconsBody);" nl   ; MOV(R1,(CONS (FPARG(R10)) ,R1));" nl
+				tab "MOV(R1,R0);" nl
+				tab "DROP(IMM(4));" nl
+
+				tab "DECR(R10);" nl        ; i++
+				tab "JUMP(" L_loop_start_4 ");" nl
+				L_loop_end_4 ":" nl
+				tab "MOV(FPARG(1), IMM(1));" nl ; update num of args (1 arg = var list)
+				tab "MOV(FPARG(2), R1);" nl ; put the list of optional args after concrete args in the stack
+				e nl
+				tab "POP(FP);" nl
+				tab "RETURN;" nl
+				L_clos_exit ":" nl
+				)))
+	))
+
+
+
+
+(define cgen-define
+  (lambda (exp major)
+    (let* ((var (cadr (car exp)))
+          (val (cadr exp))
+          (c-gen-var (code-gen var major))
+          (c-gen-val (code-gen val major))
+          (fvar-address (lookup-fvar-tables var)))
+      (string-append nl c-gen-val nl tab "MOV(IND("(type->string fvar-address)"),R0);" nl tab "MOV(R0,IMM(SOB_VOID));" nl))))
+
+;;pre-condition: exp=(pvar sym num)
+(define cgen-pvar
+	(lambda (exp major)
+		(let* ((x (cadr exp))
+			  (min (caddr exp))
+			  (offset (number->string (+ 2 min))))
+		(string-append
+			tab "MOV(R0,FPARG(" offset "));" nl 
+		))
+))
+
+(define cgen-bvar
+	(lambda (exp major)
+		(let* ((x (car exp))
+			  (maj (caddr exp))
+			  (min (cadddr exp)))
+		(string-append
+			tab "MOV(R0,FPARG(0));" nl 
+			tab "MOV(R0,INDD(R0," (type->string maj) "));" nl
+			tab "MOV(R0,INDD(R0," (type->string min) "));" nl
+		))
+))
+
+
+
+
+
+(define cgen-set-pvar
+	(lambda (exp major)
+		(let*     ((var (car exp))
+                           (val (cadr exp))
+                           (min (get-minor-for-set-pvar exp))
+                           (e (code-gen val major))
+                           (offset (number->string (+ 2 min))))
+		(string-append 
+			e nl
+			tab "MOV(FPARG(" offset "),R0);" nl
+			tab "MOV(R0,IMM(SOB_VOID));" nl
+			))
+          ))
+
+
+(define cgen-set-bvar
+	(lambda (exp major)
+		(let* ((x    (get-var-for-set exp))
+			  (maj   (get-major-for-set-bvar exp))
+			  (min   (get-minor-for-set-bvar exp))
+			  (e     (code-gen (get-value-for-set exp) major)))
+		(string-append 
+			e nl
+			tab "MOV(R1,FPARG(0));" nl
+			tab "MOV(R1,INDD(R1," (type->string maj) "));" nl
+			tab "MOV(R1,INDD(R1," (type->string min) "));" nl
+			tab "MOV(R1,R0);" nl               
+			tab "MOV(R0,IMM(SOB_VOID));" nl
+			))
+))
+
+(define cgen-set-fvar
+  (lambda (exp major)
+    (let* ((x   (get-var-for-set exp))
+           (fvar-address (lookup-fvar-tables x))
+           (e   (code-gen (get-value-for-set exp) major)))
+      (string-append
+       tab "/* START CGEN SET-FVAR*/" nl
+       tab e nl
+       tab "MOV(IND(" (type->string fvar-address) "),R0);" nl
+       tab "MOV(R0,IMM(SOB_VOID));" nl
+       tab "/* END CGEN SET-FVAR*/" nl
+       ))))
+
+
+(define cgen-box
+    (lambda(exp maj)
+        (string-append
+        "PUSH(1);\n"
+        "CALL(MALLOC);\n"
+        "DROP(1);\n"
+        "MOV(IND(R0),FPARG(" (number->string (+ 2 (caddar exp))) "));\n"
+        "MOV(FPARG(" (number->string (+ 2 (caddar exp))) "),R0);\n"
+        )))
+
+(define cgen-box-get
+    (lambda(exp maj)
+        (string-append (code-gen (car exp) maj)
+        "MOV(R0,IND(R0));\n")
+        ))      
+
+(define cgen-box-set
+    (lambda(exp maj)
+        (string-append (code-gen (cadr exp) maj)
+        "MOV(R1,R0);\n"
+        (code-gen (car exp) maj)
+        "MOV(IND(R0),R1);\n"
+        "MOV(R0,SOB_VOID);\n"
+        )
+        ))
+	
+	
+(define cgen-set
+	(lambda (rest major)
+          (let ((tag (caar rest))
+                (val (cadr rest)))
+ 
+		(cond
+			((eq? tag 'pvar) (begin
+                                           (cgen-set-pvar rest major)))
+			((eq? tag 'bvar) (begin
+                                           (cgen-set-bvar rest major)))
+                        ((eq? tag 'fvar) (begin
+                                           (cgen-set-fvar rest major)))
+			(else  "debug cgen-box-set")))
+	))
+
+(define *left-to-implement*
+"append (variadic),
+list (variadic)
+map
+make-vector (DONE)
+integer->char (DONE)
+not (DONE)
+remainder (DONE)
+eq? (DONE)
+numerator (DONE)
+denominator (DONE)
+apply (DONE BY AVI)
+< (variadic) (DONE)
+= (variadic) (DONE)
+> (variadic) (DONE)
++ (variadic) (DONE)
+/ (variadic) (DONE)
+* (variadic) (DONE)
+- (variadic) (DONE)
+boolean? (DONE)
+car (DONE)
+cdr (DONE)
+char->integer (DONE)
+char? (DONE)
+cons (DONE)
+integer? (DONE)
+make-string (DONE)
+null? (DONE)
+number? (DONE)
+pair? (DONE)
+procedure? (DONE)
+rational? (DONE)
+set-car! (DONE)
+set-cdr! (DONE)
+string-length (DONE)
+string-ref (DONE)
+string-set! (DONE)
+string->symbol (DONE)
+string? (DONE)
+symbol? (DONE)
+symbol->string (DONE)
+vector (DONE)
+vector-length (DONE)
+vector-ref (DONE)
+vector-set! (DONE)
+vector? (DONE)
+zero? (DONE)
+")
+
+(define mapM
+    (lambda (func lst)
+      (if (equal? lst '())
+          '()
+          (let ((first (list (car lst)))
+                (rest (cdr lst)))
+          (cons (apply func (list (car lst))) (mapM func (cdr lst)))))))
+ 
+
+;;;;;;;;;;;;;;;;; library primitive functions in scheme ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;variadic
+(define scm-list
+  (lambda lst-of-exps
+    (fold-right cons '() lst-of-exps)
+    ))
+
+(define scm-fold-right
+  (lambda (func base lst)
+    (cond ((equal? '() lst) '())
+          ((equal? (cdr lst) '()) (func (car lst) base))
+          (else (func (car lst) (scm-fold-right func base (cdr lst)))))))
+        
+;;;;;;;;;;;;;;;;; end of library primitive functions in scheme ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define code-gen
+  (lambda (exp major)
+    (if (not (pair? exp)) "cgen for untagged expr"
+		(let ((tag  (car exp))
+			  (rest (cdr exp)))
+		  (cond
+			((eq? tag 'if3)           
+                                                  (prepare-for-cgen-if3 rest major))
+			((eq? tag 'or)            
+                                                  (prepare-for-cgen-or rest major))
+			((eq? tag 'seq)           
+                                                  (cgen-seq (car rest) major))
+			((eq? tag 'applic)        
+                                                  (prepare-for-cgen-applic rest major))
+                        ((eq? tag 'def)           
+                                                  (cgen-define rest major))
+			((eq? tag 'tc-applic)     
+                                                  (prepare-for-cgen-tc-applic rest major))
+			((eq? tag 'lambda-simple) 
+                                                  (cgen-lambda-simple rest (+ major 1)))
+		        ((eq? tag 'lambda-var)    
+                                                  (cgen-lambda-var rest    (+ major 1)))
+		        ((eq? tag 'lambda-opt)    
+                                                  (cgen-lambda-opt rest    (+ major 1)))
+                        ((eq? tag 'fvar)         
+                                                  (cgen-fvar rest major))
+			((eq? tag 'pvar)         
+                                                  (cgen-pvar exp major)) 
+			((eq? tag 'bvar)    	 
+                                                  (cgen-bvar exp major))
+			((eq? tag 'set)     
+                                                  (cgen-set rest major))
+                        ((eq? tag 'box)     	
+                                                  (cgen-box rest major))
+                        ((eq? tag 'box-set) 
+                                                  (cgen-box-set rest major))
+			((eq? tag 'box-get) 	 
+                                                  (cgen-box-get rest major))
+			((equal? tag 'const) 	 
+                                                  (code-gen-const (cadr exp) major))
+			
+			(else 
+                         "not coded yet:")
+			)
+		  ))
   ))
   
-(define code-gen
-  (lambda (exp)
-    (let ((tag (car exp))
-          (rest (cdr exp)))
-      (cond
-        ((equal? tag 'if3) (prepare-for-cgen-if3 rest))
-        ((equal? tag 'or) ;(display "identified or") (display "\n")
-         (prepare-for-cgen-or rest))
-        (else  exp)
-        )
-      )))
+  
+(define check 
+	(lambda ()
+		(map code-gen
+                (map full-cycle
+                        (map parse (get-lst-of-exp-from-file <sexpr> (file->string "game.scm")))))
+))
+
+
+(define make-labels-file-name "lib/primitives/make-clos-labels.asm")
+
+(define string->symbol-file-name "lib/primitives/stringTosymbol.asm")
+
+(define print-to-string->symbol-file
+  (lambda ()
+    (let ((out-port (open-output-file string->symbol-file-name 'truncate)))
+      (display (string-append
+                  "LstringToSymbolBody:" nl
+                  tab "PUSH(FP);" nl
+                  tab "MOV(FP, SP);" nl
+                  tab "PUSH(R1);" nl
+                  tab "PUSH(R2);" nl
+                  tab "PUSH(R3);" nl
+                  tab "PUSH(R4);" nl
+                  tab "PUSH(R5);" nl
+                  tab "PUSH(R6);" nl
+                  tab "PUSH(R7);" nl
+                  tab "PUSH(R8);" nl
+                  tab "PUSH(R9);" nl
+                  tab "PUSH(R10);" nl
+                  tab "PUSH(R11);" nl
+                  tab "PUSH(R12);" nl
+                  tab "PUSH(R13);" nl
+                  tab "PUSH(R14);" nl
+                  
+                  tab "CMP(FPARG(1), IMM(1));" nl
+                  tab "JUMP_NE(L_error_incorrect_num_of_args);" nl
+                  tab "MOV(R4, " (type->string (fvar-counter)) ");" nl
+                  tab "CMP(IND(R4),IMM(-1));" nl
+                  tab "JUMP_EQ(LstringToSymbolBodyLoopEndNotFound);" nl
+                  tab "LstringToSymbolBodyLoopStart:" nl
+                  tab "PUSH(IND(R4));" nl
+                  tab "PUSH(FPARG(2));" nl
+                  tab "PUSH(2);" nl
+                  tab "PUSH(0); /* AS THOUGH THIS IS THE ENV OR SOMETHING.. */" nl
+                  tab "CALL(LcompareStringsBody);" nl
+                  tab "DROP(4);" nl
+                  tab "CMP(INDD(R0,1),IMM(1));" nl
+                  tab "JUMP_EQ(LstringToSymbolBodyLoopEndFound);" nl
+                  tab "CMP(INDD(R0,1),IMM(2));" nl
+                  tab "JUMP_EQ(LstringToSymbolBodyLoopEndNotFound);" nl
+                  tab "MOV(R4,INDD(R4,1));" nl
+                  tab "JUMP(LstringToSymbolBodyLoopStart);" nl
+                  "LstringToSymbolBodyLoopEndFound:" nl
+                  tab "PUSH(IND(R4));" nl
+                  tab "CALL(MAKE_SOB_SYMBOL);" nl
+                  tab "DROP(1);" nl
+                  tab "JUMP(LstringToSymbolBodyExit);" nl
+                  tab "LstringToSymbolBodyLoopEndNotFound:" nl
+                  tab "PUSH(IMM(2));" nl
+                  tab "CALL(MALLOC);" nl
+                  tab "DROP(1);" nl
+                  tab "MOV(INDD(R4,1),R0); /* NOW INSTEAD OF 2 (NIL) WE SHOULD HAVE THE ADDRESS OF THE NEXT NODE*/" nl
+                  tab "MOV(INDD(R0,0),FPARG(2));" nl
+                  tab "MOV(INDD(R0,1),IMM(2));" nl
+                  tab "PUSH(FPARG(2)); /* SHOULD BE THE ADDRESS OF THE STRING!! */" nl
+                  tab "CALL(MAKE_SOB_SYMBOL);" nl
+                  tab "DROP(1);" nl
+                  tab "JUMP(LstringToSymbolBodyExit);" nl
+                  tab "LstringToSymbolBodyExit:" nl
+                  tab "POP(R14);" nl
+                  tab "POP(R13);" nl
+                  tab "POP(R12);" nl
+                  tab "POP(R11);" nl
+                  tab "POP(R10);" nl
+                  tab "POP(R9);" nl
+                  tab "POP(R8);" nl
+                  tab "POP(R7);" nl
+                  tab "POP(R6);" nl
+                  tab "POP(R5);" nl
+                  tab "POP(R4);" nl
+                  tab "POP(R3);" nl
+                  tab"POP(R2);" nl
+                  tab "POP(R1);"  nl
+                  tab "POP(FP);" nl
+                  tab "RETURN;" nl)
+                out-port)
+      (close-output-port out-port))))
+
+  
+(define helper-print-primitive-fvar-lst
+  (lambda (lst counter)
+    (if (equal? lst '())
+        ""
+        (let* ((record (car lst))
+              (record-address (car record))
+              (record-make-label (caddr record))
+              (record-body-label (cadddr record)))
+          (cond ((equal? record-make-label "") (string-append ""  (helper-print-primitive-fvar-lst (cdr lst) (+ 1 counter))))
+                ((equal? record-make-label "LmakeList") 
+                 (string-append
+                                                      "LmakeList:" nl
+                                                         tab "MOV(R1,FPARG(0));" nl
+                                                         tab "MOV(R4,IMM(1 + 0));" nl
+                                                         tab "PUSH(R4);" nl
+                                                         tab "CALL(MALLOC);" nl
+                                                         tab "DROP(1);" nl
+                                                         tab "MOV(R2, R0);" nl
+                                                         tab "MOV(R10,IMM(0));" nl
+                                                         tab "MOV(R11,IMM(1));" nl
+                                                      "LlistloopStart3:" nl
+                                                         tab "CMP(R10,IMM(0));" nl
+                                                         tab "JUMP_EQ(LlistLoopEnd3);" nl
+                                                         tab "MOV(INDD(R2,R11), INDD(R1,R10));" nl
+                                                         tab "INCR(R10);" nl
+                                                         tab "INCR(R11);" nl
+                                                         tab "JUMP(LlistloopStart3);" nl
+                                                     "LlistLoopEnd3:" nl
+                                                         tab "MOV(R3,FPARG(1));" nl
+                                                         tab "PUSH(R3);" nl
+                                                         tab "CALL(MALLOC);" nl
+                                                         tab "DROP(1);" nl
+                                                         tab "MOV(INDD(R2,0),R0);" nl
+                                                         tab "MOV(R10,IMM(0));" nl
+                                                         tab "MOV(R11,IMM(2));" nl
+                                                     "LlistLoopStart2:" nl
+                                                         tab "CMP(R10,R3);" nl
+                                                         tab "JUMP_EQ(LloopEnd2);" nl
+                                                         tab "MOV(R7,INDD(R2,0));" nl
+                                                         tab "MOV(INDD(R7,R10),FPARG(R11));" nl
+                                                         tab "INCR(R10);" nl
+                                                         tab "INCR(R11);" nl
+                                                         tab "JUMP(LlistLoopStart2);" nl
+                                                     "LloopEnd2:" nl
+                                                         tab "MOV(R4, IMM(3));" nl
+                                                         tab "PUSH(R4);" nl
+                                                         tab "CALL(MALLOC);" nl
+                                                         tab "DROP(1);" nl
+                                                         tab "MOV(INDD(R0,0),IMM(T_CLOSURE));" nl
+                                                         tab "MOV(INDD(R0,1),R2);" nl
+                                                         tab "MOV(INDD(R0,2),LABEL(LlistBody));" nl
+                                                         tab "MOV(IND(" (type->string record-address) "),R0);" nl
+                                                         tab "RETURN;"
+                                                         (helper-print-primitive-fvar-lst (cdr lst) (+ 1 counter))
+                                                         ))
+        
+              (else (string-append
+               (type->string record-make-label) ":" nl
+               tab "PUSH(IMM(3));" nl
+               tab "CALL(MALLOC);" nl
+               tab "DROP(1);" nl
+               tab "MOV(INDD(R0, 0), IMM(T_CLOSURE));" nl
+               tab "MOV(INDD(R0, 1), IMM(" (type->string counter) "));" nl
+               tab "MOV(INDD(R0, 2), LABEL(" (type->string record-body-label) "));" nl
+               tab "MOV(IND(" (type->string record-address) "),R0);" nl
+               tab "RETURN;" nl nl nl nl
+               (helper-print-primitive-fvar-lst (cdr lst) (+ 1 counter))))
+              )))))
+          
+(define print-to-make-labels-file
+  (lambda ()
+    (let ((out-port (open-output-file make-labels-file-name 'truncate)))
+      (display (helper-print-primitive-fvar-lst (primitive-fvar-lst) 0) out-port)
+      (close-output-port out-port))))
+                
 
 (define compile-scheme-file
   (lambda (scmFile cTrgFile)
-    (let ((out-port (open-output-file (symbol->string cTrgFile) 'truncate)))
-      ;;;should be replaced with 
+    (begin (reset-const-tables) (reset-fvar-tables)
+    (let ((out-port (open-output-file 
+                                      cTrgFile
+                                      'truncate)))
        (display (string-append 
                 prologue
-               (let ((c-gen-res 
-                                (map code-gen
-                                     (map full-cycle
-                                         (map parse 
-                                               (listOfExps <sexpr> (file->string scmFile)))))))
-                  ;(display c-gen-res) (display "\n")
-                  (cond ((list? c-gen-res) (car c-gen-res) )
-                        (else c-gen-res)))
-                
+               			(let* ((orig-expr-lst  (get-lst-of-exp-from-file <sexpr> (file->string scmFile)))
+                     			(parsed-exps  (map parse orig-expr-lst))
+                     			(optimized-exps  (map full-cycle parsed-exps))
+                     			(const-table-string (load-const-table (collect-constants-cycle-improved optimized-exps)))
+                     			(len-const-table (length const-lst) )
+                                        (free-vars-string (final-fvars-string optimized-exps))
+                                        (len-fvars-primitive (length (primitive-fvar-lst)))
+                                        (len-fvars-non-primitive (length fvar-table))
+                                        (symbol-table-string (create-symbol-table))
+                                        (len-symbol-table (length symbol-table))
+                                        (print-to-file-symbol-table (print-to-string->symbol-file))
+                     			(code-gen-res  (map (lambda (item) (string-append (code-gen item -1) (print-value-of-R0))) optimized-exps))
+                                        (code-gen-res-string  (fold-left string-append "" code-gen-res)))
+                                (string-append nl tab "/*CONSTANT TABLE */" nl tab "ADD(IND(0), IMM("(type->string (+ 100 len-const-table len-fvars-primitive len-fvars-non-primitive len-symbol-table))"));"
+                                               nl nl const-table-string nl
+                                               tab "/*FREE VARS TABLE*/" nl free-vars-string nl
+                                               tab "/*SYMBOL TABLE */" nl symbol-table-string nl
+                                               code-gen-res-string))
                 epilogue)
        out-port)
-      (close-output-port out-port))))
+      (close-output-port out-port)))))
+

@@ -1,0 +1,665 @@
+LmakeCarClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(0));
+	MOV(INDD(R0, 2), LABEL(LcarBody));
+	MOV(IND(10),R0);
+	RETURN;
+
+
+
+LmakeCdrClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(1));
+	MOV(INDD(R0, 2), LABEL(LcdrBody));
+	MOV(IND(11),R0);
+	RETURN;
+
+
+
+LmakeConsClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(2));
+	MOV(INDD(R0, 2), LABEL(LconsBody));
+	MOV(IND(12),R0);
+	RETURN;
+
+
+
+LmakeEqualClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(3));
+	MOV(INDD(R0, 2), LABEL(LequalBody));
+	MOV(IND(13),R0);
+	RETURN;
+
+
+
+LmakeSetCar:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(4));
+	MOV(INDD(R0, 2), LABEL(LsetCarBody));
+	MOV(IND(14),R0);
+	RETURN;
+
+
+
+LmakeSetCdr:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(5));
+	MOV(INDD(R0, 2), LABEL(LsetCdrBody));
+	MOV(IND(15),R0);
+	RETURN;
+
+
+
+LmakeIsPairClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(6));
+	MOV(INDD(R0, 2), LABEL(LisPairBody));
+	MOV(IND(16),R0);
+	RETURN;
+
+
+
+LmakeIsProcedureClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(7));
+	MOV(INDD(R0, 2), LABEL(LisProcedureBody));
+	MOV(IND(17),R0);
+	RETURN;
+
+
+
+LmakeZeroClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(8));
+	MOV(INDD(R0, 2), LABEL(LzeroBody));
+	MOV(IND(18),R0);
+	RETURN;
+
+
+
+LmakeVectorClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(9));
+	MOV(INDD(R0, 2), LABEL(LvectorBody));
+	MOV(IND(19),R0);
+	RETURN;
+
+
+
+LmakeVectorLengthClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(10));
+	MOV(INDD(R0, 2), LABEL(LvectorLengthBody));
+	MOV(IND(20),R0);
+	RETURN;
+
+
+
+LmakeVectorRefClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(11));
+	MOV(INDD(R0, 2), LABEL(LvectorRefBody));
+	MOV(IND(21),R0);
+	RETURN;
+
+
+
+LmakeVectorSetClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(12));
+	MOV(INDD(R0, 2), LABEL(LvectorSetBody));
+	MOV(IND(22),R0);
+	RETURN;
+
+
+
+LmakeIsVectorClos:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(13));
+	MOV(INDD(R0, 2), LABEL(LisVectorBody));
+	MOV(IND(23),R0);
+	RETURN;
+
+
+
+LmakeGcd:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(14));
+	MOV(INDD(R0, 2), LABEL(LgcdBody));
+	MOV(IND(24),R0);
+	RETURN;
+
+
+
+LmakeCompareStrings:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(15));
+	MOV(INDD(R0, 2), LABEL(LcompareStringsBody));
+	MOV(IND(25),R0);
+	RETURN;
+
+
+
+LmakeStringToSymbol:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(16));
+	MOV(INDD(R0, 2), LABEL(LstringToSymbolBody));
+	MOV(IND(26),R0);
+	RETURN;
+
+
+
+LmakeMakeString:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(17));
+	MOV(INDD(R0, 2), LABEL(LmakeStringBody));
+	MOV(IND(27),R0);
+	RETURN;
+
+
+
+LmakeSymbolToStringBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(18));
+	MOV(INDD(R0, 2), LABEL(LsymbolToStringBody));
+	MOV(IND(28),R0);
+	RETURN;
+
+
+
+LmakeIsString:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(19));
+	MOV(INDD(R0, 2), LABEL(LisStringBody));
+	MOV(IND(29),R0);
+	RETURN;
+
+
+
+LmakeIsSymbol:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(20));
+	MOV(INDD(R0, 2), LABEL(LisSymbolBody));
+	MOV(IND(30),R0);
+	RETURN;
+
+
+
+LmakeStringLength:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(21));
+	MOV(INDD(R0, 2), LABEL(LstringLengthBody));
+	MOV(IND(31),R0);
+	RETURN;
+
+
+
+LmakeStringRefBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(22));
+	MOV(INDD(R0, 2), LABEL(LstringRefBody));
+	MOV(IND(32),R0);
+	RETURN;
+
+
+
+LmakeStringSetBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(23));
+	MOV(INDD(R0, 2), LABEL(LstringSetBody));
+	MOV(IND(33),R0);
+	RETURN;
+
+
+
+LmakeIsNullBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(24));
+	MOV(INDD(R0, 2), LABEL(LisNullBody));
+	MOV(IND(34),R0);
+	RETURN;
+
+
+
+LmakeIsNumberBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(25));
+	MOV(INDD(R0, 2), LABEL(LisNumberBody));
+	MOV(IND(35),R0);
+	RETURN;
+
+
+
+LmakePlus:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(26));
+	MOV(INDD(R0, 2), LABEL(LplusBody));
+	MOV(IND(36),R0);
+	RETURN;
+
+
+
+LmakePushRegisters:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(27));
+	MOV(INDD(R0, 2), LABEL(LpushRegisters));
+	MOV(IND(37),R0);
+	RETURN;
+
+
+
+LmakePopRegisters:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(28));
+	MOV(INDD(R0, 2), LABEL(LpopRegisters));
+	MOV(IND(38),R0);
+	RETURN;
+
+
+
+LmakeMultBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(29));
+	MOV(INDD(R0, 2), LABEL(LmultBody));
+	MOV(IND(39),R0);
+	RETURN;
+
+
+
+LmakeDivBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(30));
+	MOV(INDD(R0, 2), LABEL(LdivBody));
+	MOV(IND(40),R0);
+	RETURN;
+
+
+
+LmakeSmallerThan:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(31));
+	MOV(INDD(R0, 2), LABEL(LSmallerThanBody));
+	MOV(IND(41),R0);
+	RETURN;
+
+
+
+LmakeLargerThanBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(32));
+	MOV(INDD(R0, 2), LABEL(LlargerThanBody));
+	MOV(IND(42),R0);
+	RETURN;
+
+
+
+LmakeEqualThanBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(33));
+	MOV(INDD(R0, 2), LABEL(LequalThanBody));
+	MOV(IND(43),R0);
+	RETURN;
+
+
+
+LmakeMinus:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(34));
+	MOV(INDD(R0, 2), LABEL(LmakeMinusBody));
+	MOV(IND(44),R0);
+	RETURN;
+
+
+
+LmakeApply:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(35));
+	MOV(INDD(R0, 2), LABEL(LmakeApplyBody));
+	MOV(IND(45),R0);
+	RETURN;
+
+
+
+LmakeCharToIntegerBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(36));
+	MOV(INDD(R0, 2), LABEL(LcharToIntegerBody));
+	MOV(IND(46),R0);
+	RETURN;
+
+
+
+LmakeIsCharBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(37));
+	MOV(INDD(R0, 2), LABEL(LisCharBody));
+	MOV(IND(47),R0);
+	RETURN;
+
+
+
+LmakeIsBooleanBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(38));
+	MOV(INDD(R0, 2), LABEL(LisBooleanBody));
+	MOV(IND(48),R0);
+	RETURN;
+
+
+
+LmakeIsRationalBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(39));
+	MOV(INDD(R0, 2), LABEL(LisRationalBody));
+	MOV(IND(49),R0);
+	RETURN;
+
+
+
+LmakeIsIntegerBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(40));
+	MOV(INDD(R0, 2), LABEL(LisIntegerBody));
+	MOV(IND(50),R0);
+	RETURN;
+
+
+
+LmakeNumeratorBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(41));
+	MOV(INDD(R0, 2), LABEL(LnumeratorBody));
+	MOV(IND(51),R0);
+	RETURN;
+
+
+
+LmakeDenominatorBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(42));
+	MOV(INDD(R0, 2), LABEL(LdenominatorBody));
+	MOV(IND(52),R0);
+	RETURN;
+
+
+
+LmakeIsEqBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(43));
+	MOV(INDD(R0, 2), LABEL(LisEqBody));
+	MOV(IND(53),R0);
+	RETURN;
+
+
+
+LmakeRemainderBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(44));
+	MOV(INDD(R0, 2), LABEL(LremainderBody));
+	MOV(IND(54),R0);
+	RETURN;
+
+
+
+LmakeIntegerToCharBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(45));
+	MOV(INDD(R0, 2), LABEL(LintegerToCharBody));
+	MOV(IND(55),R0);
+	RETURN;
+
+
+
+LmakeNotBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(46));
+	MOV(INDD(R0, 2), LABEL(LnotBody));
+	MOV(IND(56),R0);
+	RETURN;
+
+
+
+LmakeMakeVectorBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(47));
+	MOV(INDD(R0, 2), LABEL(LmakeVectorBody));
+	MOV(IND(57),R0);
+	RETURN;
+
+
+
+LmakeList:
+	MOV(R1,FPARG(0));
+	MOV(R4,IMM(1 + 0));
+	PUSH(R4);
+	CALL(MALLOC);
+	DROP(1);
+	MOV(R2, R0);
+	MOV(R10,IMM(0));
+	MOV(R11,IMM(1));
+LlistloopStart3:
+	CMP(R10,IMM(0));
+	JUMP_EQ(LlistLoopEnd3);
+	MOV(INDD(R2,R11), INDD(R1,R10));
+	INCR(R10);
+	INCR(R11);
+	JUMP(LlistloopStart3);
+LlistLoopEnd3:
+	MOV(R3,FPARG(1));
+	PUSH(R3);
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R2,0),R0);
+	MOV(R10,IMM(0));
+	MOV(R11,IMM(2));
+LlistLoopStart2:
+	CMP(R10,R3);
+	JUMP_EQ(LloopEnd2);
+	MOV(R7,INDD(R2,0));
+	MOV(INDD(R7,R10),FPARG(R11));
+	INCR(R10);
+	INCR(R11);
+	JUMP(LlistLoopStart2);
+LloopEnd2:
+	MOV(R4, IMM(3));
+	PUSH(R4);
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0,0),IMM(T_CLOSURE));
+	MOV(INDD(R0,1),R2);
+	MOV(INDD(R0,2),LABEL(LlistBody));
+	MOV(IND(58),R0);
+	RETURN;LmakeMap:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(49));
+	MOV(INDD(R0, 2), LABEL(LmapBody));
+	MOV(IND(59),R0);
+	RETURN;
+
+
+
+LmakeAppendTwoListsBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(50));
+	MOV(INDD(R0, 2), LABEL(LappendTwoListsBody));
+	MOV(IND(60),R0);
+	RETURN;
+
+
+
+LmakeAppendListAndElementBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(51));
+	MOV(INDD(R0, 2), LABEL(LappendListAndElementBody));
+	MOV(IND(61),R0);
+	RETURN;
+
+
+
+LmakeAppendBody:
+	PUSH(IMM(3));
+	CALL(MALLOC);
+	DROP(1);
+	MOV(INDD(R0, 0), IMM(T_CLOSURE));
+	MOV(INDD(R0, 1), IMM(52));
+	MOV(INDD(R0, 2), LABEL(LappendBody));
+	MOV(IND(62),R0);
+	RETURN;
+
+
+

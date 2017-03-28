@@ -12,8 +12,8 @@
 #define Mega(n) (Kilo(n) << 10)
 #define Giga(n) (Mega(n) << 10)
 
-#define RAM_SIZE Mega(64)
-#define STACK_SIZE Mega(64)
+#define RAM_SIZE Mega(128)
+#define STACK_SIZE Mega(128)
 
 #define WORD_SIZE (sizeof(long))
 
@@ -27,6 +27,7 @@ typedef struct Machine {
 } Machine;
 
 extern Machine *machine;
+
 
 #define M(p) (machine->p)
 
